@@ -4,11 +4,12 @@
 App personale di gestione vita quotidiana ("My Ikigai" / "MyIkigai"), single-file
 HTML/CSS/JS, backend Supabase, pubblicata su GitHub Pages.
 
-- File vero e unico: `MyIkigai/index.html` — HTML + `<style>` + `<script>` tutto
-  nello stesso file. Nessun bundler, nessun build step, nessuna dipendenza npm
-  installata: le uniche librerie esterne (es. `xlsx` per import/export Excel)
-  sono caricate on-demand via `<script>` dinamico, solo quando servono.
-- URL pubblico: https://antoniocalamo.github.io/App/MyIkigai/
+- File vero e unico: `index.html` (nella radice del repository) — HTML + `<style>`
+  + `<script>` tutto nello stesso file. Nessun bundler, nessun build step, nessuna
+  dipendenza npm installata: le uniche librerie esterne (es. `xlsx` per
+  import/export Excel) sono caricate on-demand via `<script>` dinamico, solo
+  quando servono.
+- URL pubblico: https://antoniocalamo.github.io/MyIkigai/
 - Backend Supabase con 2 utenti reali: io (admin, via `isAdmin()`) e mia moglie
   (utente base). Attenzione quando tocchi permessi/segregazione dati.
 - Non sono uno sviluppatore: usa sempre un linguaggio chiaro e semplice.
