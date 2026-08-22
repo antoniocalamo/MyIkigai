@@ -3735,16 +3735,16 @@ async function ensureWeatherLoaded(){
   if(weatherCache && weatherCacheKey===key) return weatherCache;
   try{
     const lat=loc.lat, lon=loc.lon;
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation&daily=precipitation_sum,precipitation_probability_max,weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=8`);
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation&daily=precipitation_sum,precipitation_probability_max,weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7`);
     const data = await res.json();
     if(data.error || !data.daily || !data.current){ console.error("meteo: risposta inattesa", data); weatherCache = null; return weatherCache; }
-    const days = (data.daily.time||[]).slice(1,8).map((d,i)=>({
+    const days = (data.daily.time||[]).slice(0,7).map((d,i)=>({
       date: d,
-      precipMm: data.daily.precipitation_sum ? data.daily.precipitation_sum[i+1] : null,
-      precipProb: data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[i+1] : null,
-      code: data.daily.weathercode ? data.daily.weathercode[i+1] : null,
-      tMax: data.daily.temperature_2m_max ? Math.round(data.daily.temperature_2m_max[i+1]) : null,
-      tMin: data.daily.temperature_2m_min ? Math.round(data.daily.temperature_2m_min[i+1]) : null
+      precipMm: data.daily.precipitation_sum ? data.daily.precipitation_sum[i] : null,
+      precipProb: data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[i] : null,
+      code: data.daily.weathercode ? data.daily.weathercode[i] : null,
+      tMax: data.daily.temperature_2m_max ? Math.round(data.daily.temperature_2m_max[i]) : null,
+      tMin: data.daily.temperature_2m_min ? Math.round(data.daily.temperature_2m_min[i]) : null
     }));
     weatherCache = { temp: Math.round(data.current.temperature_2m), precipToday: data.daily.precipitation_sum[0], next7days: days };
     weatherCacheKey = key;
