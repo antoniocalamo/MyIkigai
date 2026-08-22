@@ -4411,35 +4411,46 @@ function buildGcalStatusButton(){
 // A differenza di Google Calendar non c'è un popup di accesso: il "collegamento" è incollare
 // una volta il codice segreto generato lato My Dojo. Viene salvato privatamente (stesso store
 // protetto da RLS usato per tutte le altre impostazioni personali), mai scritto nel codice.
+// Il blocco si ridisegna da solo dopo Salva/Scollega (holder fisso, contenuto sostituito), così
+// la conferma è immediata invece di richiedere una chiusura/riapertura del pannello.
 function buildDojoStatusBlock(){
-  if(dojoHasToken()){
-    const wrap = el("span",{class:"gcal-status-wrap"});
-    wrap.appendChild(el("span",{class:"btn ghost small", style:"cursor:default;opacity:.75;"},"● My Dojo connesso"));
-    const off = el("button",{class:"btn ghost small", title:"Scollega My Dojo"},"Scollega");
-    off.addEventListener("click", async ()=>{
-      if(await confirmModal("Scollegare My Dojo? I promemoria non verranno più mostrati finché non incolli di nuovo il codice.", {danger:true, okLabel:"Scollega"})){
-        state.dojoReminders = {token:null};
-        dojoEventsCache = null;
-        await store.setQuiet(privKey("dojoReminders"), state.dojoReminders);
-        render(currentRenderedTab);
-      }
+  const holder = el("div",{});
+  function redraw(){
+    holder.innerHTML = "";
+    if(dojoHasToken()){
+      const wrap = el("span",{class:"gcal-status-wrap"});
+      wrap.appendChild(el("span",{class:"btn ghost small", style:"cursor:default;opacity:.75;"},"● My Dojo connesso"));
+      const off = el("button",{class:"btn ghost small", title:"Scollega My Dojo"},"Scollega");
+      off.addEventListener("click", async ()=>{
+        if(await confirmModal("Scollegare My Dojo? I promemoria non verranno più mostrati finché non incolli di nuovo il codice.", {danger:true, okLabel:"Scollega"})){
+          state.dojoReminders = {token:null};
+          dojoEventsCache = null;
+          await store.setQuiet(privKey("dojoReminders"), state.dojoReminders);
+          redraw();
+          render(currentRenderedTab);
+        }
+      });
+      wrap.appendChild(off);
+      holder.appendChild(wrap);
+      return;
+    }
+    const row = el("div",{style:"display:flex; gap:8px;"});
+    const input = el("input",{type:"text", placeholder:"Incolla qui il codice"});
+    const btn = el("button",{class:"btn ghost small"},"Salva");
+    btn.addEventListener("click", async ()=>{
+      const val = input.value.trim();
+      if(!val) return;
+      state.dojoReminders = {token:val};
+      dojoEventsCache = null;
+      await store.setQuiet(privKey("dojoReminders"), state.dojoReminders);
+      redraw();
+      render(currentRenderedTab);
     });
-    wrap.appendChild(off);
-    return wrap;
+    row.appendChild(input); row.appendChild(btn);
+    holder.appendChild(row);
   }
-  const wrap = el("div",{style:"display:flex; gap:8px;"});
-  const input = el("input",{type:"text", placeholder:"Incolla qui il codice"});
-  const btn = el("button",{class:"btn ghost small"},"Salva");
-  btn.addEventListener("click", async ()=>{
-    const val = input.value.trim();
-    if(!val) return;
-    state.dojoReminders = {token:val};
-    dojoEventsCache = null;
-    await store.setQuiet(privKey("dojoReminders"), state.dojoReminders);
-    render(currentRenderedTab);
-  });
-  wrap.appendChild(input); wrap.appendChild(btn);
-  return wrap;
+  redraw();
+  return holder;
 }
 function renderDashboard(main){
   const past = pastDates().filter(d => state.dashboard.days[d] && state.dashboard.days[d].length);
