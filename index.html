@@ -1504,6 +1504,19 @@ input.cashflow-item-occ-input{
 .project-day-chip-title.done{text-decoration:line-through; opacity:.6;}
 .project-day-chip-kind{flex-shrink:0; font-style:italic; opacity:.7;}
 .project-day-chip-proj{flex-shrink:0; opacity:.65; font-size:10px;}
+.dojo-day-events{display:flex; flex-direction:column; gap:4px; margin-bottom:6px;}
+.dojo-event-chip{
+  display:flex; align-items:center; gap:6px;
+  background:var(--paper-2); border:1px dashed var(--rust);
+  border-radius:6px; padding:4px 8px;
+  font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);
+}
+.dojo-event-chip:hover{background:var(--paper);}
+.dojo-event-icon{width:12px; height:12px; flex-shrink:0; color:var(--rust); opacity:.8;}
+.dojo-event-icon svg{width:100%; height:100%; display:block;}
+.dojo-event-title{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;}
+.dojo-event-chip.done .dojo-event-title{text-decoration:line-through; opacity:.6;}
+.dojo-event-check{flex-shrink:0; color:var(--forest); font-weight:700;}
 .toggle-completed{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-soft); cursor:pointer;}
 .toggle-completed input{accent-color:var(--forest); width:15px; height:15px;}
 .day-row.today .day-label{
@@ -1978,6 +1991,7 @@ const ICON_EMPTY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const ICON_GEAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>';
 const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const ICON_GCAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>';
+const ICON_DOJO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6M2 10v4M20 9v6M22 10v4M7 12h10"/><rect x="5" y="7" width="3" height="10" rx="1"/><rect x="16" y="7" width="3" height="10" rx="1"/></svg>';
 const ICON_GRIP = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
 const ICON_MORE_DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M8 3h8l-1 6 3 3v2H6v-2l3-3-1-6Z"/></svg>';
@@ -2282,6 +2296,14 @@ const THEMES = {
 const SUPABASE_URL = "https://ojucknfxtbcjqvjhqljc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_oBGq3W5oMZihk70Mt2KRSA_uKKUJeTb";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Client di sola lettura verso il database (separato) di My Dojo, usato solo per leggere i
+// promemoria del piano allenamenti tramite una funzione RPC dedicata e protetta da un codice
+// segreto salvato privatamente qui (vedi get_dojo_reminders lato My Dojo). Nessun login: la
+// chiave qui sotto è pubblica allo stesso modo di SUPABASE_KEY sopra, l'accesso ai dati vero
+// e proprio è filtrato dal codice segreto passato ad ogni chiamata.
+const DOJO_SUPABASE_URL = "https://ctfedjwikdgcfqzyzzdn.supabase.co";
+const DOJO_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0ZmVkandpa2RnY2Zxenl6emRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MDk4ODQsImV4cCI6MjEwMjM4NTg4NH0.DHByCjnaddzArYURy8feSfrxo8glx7bs1bTbeYBhEyA";
+const dojoSb = window.supabase.createClient(DOJO_SUPABASE_URL, DOJO_SUPABASE_KEY);
 
 document.getElementById("login-version").innerHTML = APP_VERSION + " · by Antonio Calamo<br>with love (and AI)";
 document.getElementById("app-version").textContent = APP_VERSION + " · by Antonio Calamo with love (and AI)";
@@ -2432,7 +2454,7 @@ window.addEventListener("beforeunload", (e)=>{
   if(pendingSaves > 0){ e.preventDefault(); e.returnValue = ""; }
 });
 
-let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, projectAssignees:null, ortoWeatherLocation:null, mobilePinned:null };
+let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, projectAssignees:null, ortoWeatherLocation:null, mobilePinned:null, dojoReminders:null };
 let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null;
 let activeMaintenanceItem = null;
 let goodThingPick = null;
@@ -2733,6 +2755,60 @@ function buildGcalDayEvents(dateStr){
   });
   return wrap;
 }
+// Promemoria (sola lettura) del piano allenamenti di My Dojo. Stesso schema di cache della
+// finestra di 7 giorni usato sopra per Google Calendar: una chiamata sola copre tutta la To Do
+// List. A differenza di Google, qui non c'è login/OAuth: la "chiave" è il codice segreto
+// incollato una volta nelle impostazioni account (vedi buildDojoStatusBlock).
+let dojoEventsCache = null; // { "2026-08-24": [{title, done}], ... }
+let dojoEventsCacheAt = 0;
+let dojoEventsFetchPromise = null;
+function dojoEventsCacheFresh(){ return dojoEventsCache && (Date.now()-dojoEventsCacheAt < 120000); }
+function dojoHasToken(){ return !!(state.dojoReminders && state.dojoReminders.token); }
+async function ensureDojoEventsLoaded(){
+  if(!dojoHasToken()) return null;
+  if(dojoEventsCacheFresh()) return dojoEventsCache;
+  if(dojoEventsFetchPromise) return dojoEventsFetchPromise;
+  dojoEventsFetchPromise = fetchDojoEventsFromApi().finally(()=>{ dojoEventsFetchPromise = null; });
+  return dojoEventsFetchPromise;
+}
+async function fetchDojoEventsFromApi(){
+  try{
+    const dateFrom = isoDate(new Date());
+    const dateTo = addDaysISO(new Date(), 6);
+    const { data, error } = await dojoSb.rpc("get_dojo_reminders", {
+      p_token: state.dojoReminders.token, p_date_from: dateFrom, p_date_to: dateTo
+    });
+    if(error){ console.error("dojo reminders: risposta non ok", error); return null; }
+    const map = {};
+    (data || []).forEach(row=>{
+      if(!map[row.event_date]) map[row.event_date] = [];
+      map[row.event_date].push({ title: row.workout_name, done: !!row.done });
+    });
+    dojoEventsCache = map;
+    dojoEventsCacheAt = Date.now();
+    return map;
+  }catch(e){
+    console.error("dojo reminders: errore fetch", e);
+    return null;
+  }
+}
+function buildDojoDayEvents(dateStr){
+  const wrap = el("div",{class:"dojo-day-events"});
+  if(!dojoHasToken()) return wrap;
+  ensureDojoEventsLoaded().then(map=>{
+    if(!map) return;
+    const events = map[dateStr];
+    if(!events || !events.length) return;
+    events.forEach(ev=>{
+      const row = el("div",{class:"dojo-event-chip"+(ev.done?" done":""), title:"Da My Dojo (sola lettura)"});
+      row.appendChild(el("span",{class:"dojo-event-icon", html:ICON_DOJO}));
+      row.appendChild(el("span",{class:"dojo-event-title"}, ev.title));
+      if(ev.done) row.appendChild(el("span",{class:"dojo-event-check"}, "✓"));
+      wrap.appendChild(row);
+    });
+  });
+  return wrap;
+}
 // Chip (modificabili al volo) delle attività di Progetti che iniziano o scadono in questo
 // giorno: mostrato solo su inizio e scadenza (non su ogni giorno intermedio, per non intasare
 // la To Do List). I dati sono già locali, quindi nessuna cache/fetch asincrono è necessaria.
@@ -2835,7 +2911,7 @@ async function loadAll(){
     projectAssigneesRaw, customTabsRaw, customTabsPrivateRaw,
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
-    taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw
+    taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw
   ] = await Promise.all([
     store.get(privKey("dashboard"), DEFAULTS.dashboard),
     store.get("orto", DEFAULTS.orto),
@@ -2864,7 +2940,8 @@ async function loadAll(){
     store.get("dashTitles", DEFAULT_DASH_TITLES),
     store.get("bootPhrases", DEFAULT_BOOT_PHRASES),
     store.get(privKey("accountSettings"), {notifyFinance27:false}),
-    store.get(privKey("googleCalendar"), {connected:false, email:null})
+    store.get(privKey("googleCalendar"), {connected:false, email:null}),
+    store.get(privKey("dojoReminders"), {token:null})
   ]);
 
   state.dashboard = dashboardRaw;
@@ -3050,6 +3127,7 @@ async function loadAll(){
   try{ localStorage.setItem("bootPhrasesCache", JSON.stringify(state.bootPhrases)); }catch(e){}
   state.accountSettings = accountSettingsRaw;
   state.googleCalendar = googleCalendarRaw;
+  state.dojoReminders = dojoRemindersRaw;
 }
 
 /* ---------------- auth ---------------- */
@@ -4092,6 +4170,11 @@ function openAccountSettingsModal(){
       "Collega il tuo Google Calendar per vedere i tuoi eventi nella To Do List (sola lettura)."));
     modal.appendChild(buildGcalStatusButton());
 
+    modal.appendChild(el("div",{class:"field-label", style:"margin-top:18px;"},"My Dojo"));
+    modal.appendChild(el("div",{style:"font-size:12px; color:var(--ink-soft); margin-bottom:8px;"},
+      "Incolla qui il codice ricevuto per vedere il piano allenamenti nella To Do List (sola lettura)."));
+    modal.appendChild(buildDojoStatusBlock());
+
     if(isAdmin()){
       modal.appendChild(el("div",{class:"field-label", style:"margin-top:18px;"},"Amministrazione (solo per te)"));
       const adminBox = el("div",{style:"font-size:12px; color:var(--ink-soft); line-height:1.6; background:var(--paper-2); border-radius:10px; padding:10px 12px;"});
@@ -4155,6 +4238,13 @@ function openViewSettingsModal(){
     gcalRow.appendChild(el("span",{class:"box-icon", html:ICON_GCAL}));
     gcalRow.appendChild(el("span",{}, "Mostra eventi Google"));
     modal.appendChild(gcalRow);
+    const dojoRow = el("div",{class:"kpi-check-row"});
+    const dojoCb = el("input",{type:"checkbox"});
+    dojoCb.checked = state.accountSettings.showDojoEvents !== false;
+    dojoRow.appendChild(dojoCb);
+    dojoRow.appendChild(el("span",{class:"box-icon", html:ICON_DOJO}));
+    dojoRow.appendChild(el("span",{}, "Mostra promemoria My Dojo"));
+    modal.appendChild(dojoRow);
     const completedRow = el("div",{class:"kpi-check-row"});
     const completedCb = el("input",{type:"checkbox"});
     completedCb.checked = state.dashboard.showCompleted !== false;
@@ -4172,6 +4262,7 @@ function openViewSettingsModal(){
       else state.dashboard.widgetsHiddenDesktop = !hideCb.checked;
       state.dashboard.backlogCollapsed = !backlogCb.checked;
       state.accountSettings.showGcalEvents = gcalCb.checked;
+      state.accountSettings.showDojoEvents = dojoCb.checked;
       state.dashboard.showCompleted = completedCb.checked;
       store.set(privKey("dashboard"), state.dashboard);
       store.setQuiet(privKey("accountSettings"), state.accountSettings);
@@ -4317,6 +4408,39 @@ function buildGcalStatusButton(){
   btn.addEventListener("click", connectGoogleCalendar);
   return btn;
 }
+// A differenza di Google Calendar non c'è un popup di accesso: il "collegamento" è incollare
+// una volta il codice segreto generato lato My Dojo. Viene salvato privatamente (stesso store
+// protetto da RLS usato per tutte le altre impostazioni personali), mai scritto nel codice.
+function buildDojoStatusBlock(){
+  if(dojoHasToken()){
+    const wrap = el("span",{class:"gcal-status-wrap"});
+    wrap.appendChild(el("span",{class:"btn ghost small", style:"cursor:default;opacity:.75;"},"● My Dojo connesso"));
+    const off = el("button",{class:"btn ghost small", title:"Scollega My Dojo"},"Scollega");
+    off.addEventListener("click", async ()=>{
+      if(await confirmModal("Scollegare My Dojo? I promemoria non verranno più mostrati finché non incolli di nuovo il codice.", {danger:true, okLabel:"Scollega"})){
+        state.dojoReminders = {token:null};
+        dojoEventsCache = null;
+        await store.setQuiet(privKey("dojoReminders"), state.dojoReminders);
+        render(currentRenderedTab);
+      }
+    });
+    wrap.appendChild(off);
+    return wrap;
+  }
+  const wrap = el("div",{style:"display:flex; gap:8px;"});
+  const input = el("input",{type:"text", placeholder:"Incolla qui il codice"});
+  const btn = el("button",{class:"btn ghost small"},"Salva");
+  btn.addEventListener("click", async ()=>{
+    const val = input.value.trim();
+    if(!val) return;
+    state.dojoReminders = {token:val};
+    dojoEventsCache = null;
+    await store.setQuiet(privKey("dojoReminders"), state.dojoReminders);
+    render(currentRenderedTab);
+  });
+  wrap.appendChild(input); wrap.appendChild(btn);
+  return wrap;
+}
 function renderDashboard(main){
   const past = pastDates().filter(d => state.dashboard.days[d] && state.dashboard.days[d].length);
   const todoActions = el("div",{class:"todo-header-actions"});
@@ -4426,6 +4550,7 @@ function buildDayRow(main, dateStr, isToday, isHistory){
   const tasks = state.dashboard.days[dateStr];
   const dayCard = el("div",{class:"card day-card"+(isHistory?" day-card-history":""), style:`--day-color:${DAY_COLORS[dayName]}`});
   if(!isHistory && state.accountSettings.showGcalEvents!==false) dayCard.appendChild(buildGcalDayEvents(dateStr));
+  if(!isHistory && state.accountSettings.showDojoEvents!==false) dayCard.appendChild(buildDojoDayEvents(dateStr));
   if(!isHistory) dayCard.appendChild(buildProjectDayTasks(dateStr));
   tasks.forEach((t,i)=>{
     if(state.dashboard.showCompleted===false && t.done) return;
