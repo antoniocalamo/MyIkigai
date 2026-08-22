@@ -2357,6 +2357,11 @@ document.getElementById("zoom-out-btn").addEventListener("click", ()=>{
 });
 
 let keySnapshots = {};
+// Quanti salvataggi verso Supabase sono "in volo" in questo momento. Se chiudi/navighi via
+// mentre questo è >0, il browser interrompe la richiesta a metà — troppo bruscamente perché il
+// codice faccia in tempo a mostrare l'avviso di errore. L'unica difesa possibile lato browser è
+// avvisare PRIMA che questo accada (vedi il listener "beforeunload" più sotto).
+let pendingSaves = 0;
 const store = {
   async get(key, fallback){
     try{
@@ -2383,6 +2388,7 @@ const store = {
       pushUndo(makeUndoRedoPair(key, prevClone, newClone, tabAtChange));
     }
     keySnapshots[key] = structuredClone(value);
+    pendingSaves++;
     try{
       const { error } = await sb
         .from("planner_store")
@@ -2390,12 +2396,14 @@ const store = {
       if(error){ console.error("supabase set error", key, error); this.notifyFailed(key, value, false); }
       else saveErrorToast.hide();
     }catch(e){ console.error("supabase set error", key, e); this.notifyFailed(key, value, false); }
+    finally{ pendingSaves--; }
   },
   // come set(), ma non occupa uno slot della cronologia "Undo": da usare per modifiche
   // frequenti e non distruttive (riordini, toggle, piccole preferenze) che altrimenti
   // "spingerebbero fuori" dalla cronologia una vera eliminazione che l'utente vuole recuperare.
   async setQuiet(key, value){
     keySnapshots[key] = structuredClone(value);
+    pendingSaves++;
     try{
       const { error } = await sb
         .from("planner_store")
@@ -2403,6 +2411,7 @@ const store = {
       if(error){ console.error("supabase set error", key, error); this.notifyFailed(key, value, true); }
       else saveErrorToast.hide();
     }catch(e){ console.error("supabase set error", key, e); this.notifyFailed(key, value, true); }
+    finally{ pendingSaves--; }
   },
   // Mostra l'avviso "salvataggio fallito" con un pulsante "Riprova" che rilancia lo stesso
   // salvataggio. `value` è lo stesso riferimento passato a set/setQuiet: se nel frattempo
@@ -2413,6 +2422,15 @@ const store = {
       ()=> quiet ? this.setQuiet(key, value) : this.set(key, value));
   }
 };
+// Se chiudi la scheda/la app mentre un salvataggio è ancora in corso, il browser interrompe la
+// richiesta a metà senza che l'app possa accorgersene o avvisarti (vedi commento su
+// "pendingSaves" sopra). L'unica difesa possibile è avvisare PRIMA di chiudere: i browser desktop
+// mostrano un avviso nativo del tipo "Le modifiche apportate potrebbero non essere salvate". Sui
+// telefoni (soprattutto Safari/iOS) questo avviso spesso non compare: è un limite della
+// piattaforma, non qualcosa che si può aggirare da qui.
+window.addEventListener("beforeunload", (e)=>{
+  if(pendingSaves > 0){ e.preventDefault(); e.returnValue = ""; }
+});
 
 let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, projectAssignees:null, ortoWeatherLocation:null, mobilePinned:null };
 let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null;
