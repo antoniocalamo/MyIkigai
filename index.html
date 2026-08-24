@@ -1166,6 +1166,9 @@ input.pack-num{
 .stat-weather{font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--teal); margin-top:5px;}
 .stat-weather-head{display:flex; align-items:center; gap:6px; margin-top:5px;}
 .stat-weather-head .stat-weather{margin-top:0;}
+.stat-label-weather-row{display:flex; align-items:baseline; justify-content:space-between; gap:4px 10px; flex-wrap:wrap; margin-top:4px;}
+.stat-label-weather-row .stat-label{margin-top:0;}
+.stat-label-weather-row .stat-weather-head{margin-top:0;}
 .stat-weather-gear{width:12px; height:12px; opacity:.4; cursor:pointer; flex-shrink:0; color:var(--ink-soft);}
 .stat-weather-gear:hover{opacity:.8;}
 .stat-weather-gear svg{width:100%; height:100%; display:block;}
@@ -3964,7 +3967,7 @@ function statCard(kpiKey){
     card.appendChild(el("div",{class:"stat-icon", style:`color:${def.color}`, html:def.icon}));
     card.appendChild(el("div",{class:"stat-value"}, String(def.compute())));
   }
-  if(!def.isNetWorth) card.appendChild(el("div",{class:"stat-label"}, def.label));
+  if(kpiKey!=="ortoWater" && !def.isNetWorth) card.appendChild(el("div",{class:"stat-label"}, def.label));
   if(kpiKey==="ortoWater"){
     const weatherHead = el("div",{class:"stat-weather-head"});
     const weatherLine = el("div",{class:"stat-weather"}, "meteo…");
@@ -3975,7 +3978,10 @@ function statCard(kpiKey){
       onSaved: ()=>{ weatherCache=null; weatherCacheKey=null; }
     }); });
     weatherHead.appendChild(weatherLine); weatherHead.appendChild(gearBtn);
-    card.appendChild(weatherHead);
+    const labelRow = el("div",{class:"stat-label-weather-row"});
+    labelRow.appendChild(el("div",{class:"stat-label"}, def.label));
+    labelRow.appendChild(weatherHead);
+    card.appendChild(labelRow);
     const forecastWrap = el("div",{class:"stat-weather-row"});
     const forecastRow = el("div",{class:"stat-weather-3d"});
     forecastWrap.appendChild(forecastRow);
