@@ -744,7 +744,7 @@ textarea{resize:vertical;}
   font-size:13px; cursor:pointer;
   filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));
 }
-.orto-rotation-pop{ width:200px; }
+.orto-rotation-pop{ width:200px; z-index:500; }
 .orto-rotation-pop-text{ font-size:12px; line-height:1.4; color:var(--ink); }
 .frame-transp-toggle{
   width:14px; height:14px; border-radius:4px; border:1px solid #1a1a1a; opacity:.5;
@@ -755,7 +755,7 @@ textarea{resize:vertical;}
 .orto-comment-pin{
   position:absolute; width:26px; height:26px; border-radius:7px 7px 7px 2px;
   background:var(--mustard); color:#fff; display:flex; align-items:center; justify-content:center;
-  cursor:grab; box-shadow:0 2px 6px rgba(0,0,0,0.25); z-index:5;
+  cursor:grab; box-shadow:0 2px 6px rgba(0,0,0,0.25); z-index:500;
 }
 .orto-comment-pin:active{cursor:grabbing;}
 .orto-comment-icon{width:15px; height:15px;}
@@ -5322,8 +5322,15 @@ function renderOrto(main){
           render("orto");
         });
         warnWrap.appendChild(warnIcon);
+        node.appendChild(warnWrap);
         if(activeRotationWarningId===obj.id){
-          const pop = el("div",{class:"orto-comment-pop orto-rotation-pop"});
+          // il popover va agganciato direttamente alla board, non annidato nell'aiuola: le
+          // aiuole hanno z-index basso apposta per stare "sotto" le piante che le riempiono,
+          // quindi qualunque cosa nidificata al loro interno (compreso un popover) resterebbe
+          // nascosta dietro qualunque pianta sovrapposta nella stessa zona — si apriva
+          // correttamente, ma era invisibile.
+          const pop = el("div",{class:"orto-comment-pop orto-rotation-pop",
+            style:`left:${(obj.x||0)+20}px; top:${(obj.y||0)+26}px;`});
           pop.addEventListener("click", ev=>ev.stopPropagation());
           pop.addEventListener("mousedown", ev=>ev.stopPropagation());
           const popHead = el("div",{class:"orto-comment-pop-head"});
@@ -5341,9 +5348,8 @@ function renderOrto(main){
             store.set("orto", state.orto); render("orto");
           });
           pop.appendChild(ignoreBtn);
-          warnWrap.appendChild(pop);
+          board.appendChild(pop);
         }
-        node.appendChild(warnWrap);
       }
 
       makeDraggable(hit, obj, board, {moveTarget:node, onTap:()=>{ selectedOrtoObjId = obj.id; render("orto"); }});
