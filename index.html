@@ -667,7 +667,7 @@ textarea{resize:vertical;}
   clip-path: polygon(evenodd, 0 0,100% 0,100% 100%,0 100%,0 0, 14px 14px,calc(100% - 14px) 14px,calc(100% - 14px) calc(100% - 14px),14px calc(100% - 14px),14px 14px);
 }
 .orto-bed-hit:active{cursor:grabbing;}
-.orto-bed .bed-del, .orto-bed .stack-btns, .orto-bed .orto-obj-resize, .orto-bed .orto-frame-controls{ pointer-events:auto; }
+.orto-bed .bed-del, .orto-bed .stack-btns, .orto-bed .orto-obj-resize, .orto-bed .orto-frame-controls, .orto-bed .orto-rotation-warning-wrap{ pointer-events:auto; }
 .orto-cal-toggle{margin-left:auto;}
 .orto-calendar{
   margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:14px;
@@ -739,10 +739,13 @@ textarea{resize:vertical;}
 .orto-frame-controls{
   position:absolute; bottom:3px; left:5px; display:flex; align-items:center; gap:5px;
 }
+.orto-rotation-warning-wrap{ position:absolute; top:3px; left:20px; z-index:6; }
 .orto-rotation-warning{
-  position:absolute; top:3px; left:20px; font-size:13px; cursor:help;
+  font-size:13px; cursor:pointer;
   filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));
 }
+.orto-rotation-pop{ width:200px; }
+.orto-rotation-pop-text{ font-size:12px; line-height:1.4; color:var(--ink); }
 .frame-transp-toggle{
   width:14px; height:14px; border-radius:4px; border:1px solid #1a1a1a; opacity:.5;
   display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -4823,6 +4826,7 @@ function openNewBoxModal(){
 
 /* ---------------- ORTO ---------------- */
 let activeCommentId = null;
+let activeRotationWarningId = null;
 let selectedOrtoObjId = null;
 let ortoZoom = 1;
 let ortoHandMode = false;
@@ -4909,6 +4913,10 @@ function freezeAndAdvanceOrtoSeason(){
   if(!active) return;
   active.snapshot = JSON.parse(JSON.stringify(state.orto.objects||[]));
   active.frozenAt = new Date().toISOString().slice(0,10);
+  // Con la nuova stagione cambia la finestra delle "ultime 2 stagioni congelate" su cui si basa
+  // l'avviso di rotazione: gli "ignora" dati finora non sono più necessariamente validi, quindi
+  // si azzerano e l'avviso può ripresentarsi se il problema si ripete davvero.
+  (state.orto.objects||[]).forEach(o=>{ if(o.dismissedRotationWarnings) delete o.dismissedRotationWarnings; });
   const next = nextOrtoSeasonLabel(active.year, active.season);
   startOrtoSeason(next.year, next.season);
 }
@@ -4928,10 +4936,11 @@ function bedRotationWarning(bedObj){
     });
   });
   if(!recentFamilies.size) return null;
+  const dismissed = new Set(bedObj.dismissedRotationWarnings||[]);
   const currentPlants = state.orto.objects.filter(o=>o.type==="coltura" && o.plantKind && findContainingBedIdIn(state.orto.objects, o)===bedObj.id);
   for(const p of currentPlants){
     const def = ORTO_PLANTS.find(x=>x.key===p.plantKind);
-    if(def && recentFamilies.has(def.family)) return {family:def.family, plantName:def.label};
+    if(def && recentFamilies.has(def.family) && !dismissed.has(def.family)) return {family:def.family, plantName:def.label};
   }
   return null;
 }
@@ -5275,8 +5284,36 @@ function renderOrto(main){
 
       const rotWarning = bedRotationWarning(obj);
       if(rotWarning){
-        node.appendChild(el("span",{class:"orto-ctrl orto-rotation-warning",
-          title:`Rotazione consigliata: hai già coltivato ${rotWarning.family} (${rotWarning.plantName}) di recente in questa aiuola`}, "⚠️"));
+        const warnWrap = el("span",{class:"orto-ctrl orto-rotation-warning-wrap"});
+        const warnIcon = el("span",{class:"orto-rotation-warning", title:"Rotazione consigliata: tocca per i dettagli"}, "⚠️");
+        warnIcon.addEventListener("click",(e)=>{
+          e.stopPropagation();
+          activeRotationWarningId = (activeRotationWarningId===obj.id) ? null : obj.id;
+          render("orto");
+        });
+        warnWrap.appendChild(warnIcon);
+        if(activeRotationWarningId===obj.id){
+          const pop = el("div",{class:"orto-comment-pop orto-rotation-pop"});
+          pop.addEventListener("click", ev=>ev.stopPropagation());
+          pop.addEventListener("mousedown", ev=>ev.stopPropagation());
+          const popHead = el("div",{class:"orto-comment-pop-head"});
+          const closeC = el("span",{class:"orto-comment-close", html:"✕", title:"Chiudi"});
+          closeC.addEventListener("click", (e)=>{ e.stopPropagation(); activeRotationWarningId=null; render("orto"); });
+          popHead.appendChild(closeC);
+          pop.appendChild(popHead);
+          pop.appendChild(el("div",{class:"orto-rotation-pop-text"},
+            `Hai già coltivato ${rotWarning.family} (${rotWarning.plantName}) di recente in questa aiuola. Ruotare le colture aiuta a prevenire parassiti e impoverimento del terreno.`));
+          const ignoreBtn = el("button",{class:"btn small ghost", style:"margin-top:8px;width:100%;"}, "Ignora questo avviso");
+          ignoreBtn.addEventListener("click", ()=>{
+            if(!obj.dismissedRotationWarnings) obj.dismissedRotationWarnings = [];
+            obj.dismissedRotationWarnings.push(rotWarning.family);
+            activeRotationWarningId = null;
+            store.set("orto", state.orto); render("orto");
+          });
+          pop.appendChild(ignoreBtn);
+          warnWrap.appendChild(pop);
+        }
+        node.appendChild(warnWrap);
       }
 
       makeDraggable(hit, obj, board, {moveTarget:node, onTap:()=>{ selectedOrtoObjId = obj.id; render("orto"); }});
