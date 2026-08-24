@@ -667,7 +667,7 @@ textarea{resize:vertical;}
   clip-path: polygon(evenodd, 0 0,100% 0,100% 100%,0 100%,0 0, 14px 14px,calc(100% - 14px) 14px,calc(100% - 14px) calc(100% - 14px),14px calc(100% - 14px),14px 14px);
 }
 .orto-bed-hit:active{cursor:grabbing;}
-.orto-bed .bed-del, .orto-bed .stack-btns, .orto-bed .orto-obj-resize, .orto-bed .orto-frame-controls, .orto-bed .orto-rotation-warning-wrap{ pointer-events:auto; }
+.orto-bed .bed-del, .orto-bed .stack-btns, .orto-bed .orto-obj-resize, .orto-bed .orto-frame-controls{ pointer-events:auto; }
 .orto-cal-toggle{margin-left:auto;}
 .orto-calendar{
   margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:14px;
@@ -739,7 +739,7 @@ textarea{resize:vertical;}
 .orto-frame-controls{
   position:absolute; bottom:3px; left:5px; display:flex; align-items:center; gap:5px;
 }
-.orto-rotation-warning-wrap{ position:absolute; top:3px; left:20px; z-index:6; }
+.orto-rotation-warning-wrap{ position:absolute; z-index:500; }
 .orto-rotation-warning{
   font-size:13px; cursor:pointer;
   filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));
@@ -5314,7 +5314,14 @@ function renderOrto(main){
 
       const rotWarning = bedRotationWarning(obj);
       if(rotWarning){
-        const warnWrap = el("span",{class:"orto-ctrl orto-rotation-warning-wrap"});
+        // Sia l'icona che il popover vanno agganciati direttamente alla board, non annidati
+        // nell'aiuola: le aiuole hanno z-index basso apposta per stare "sotto" le piante che
+        // le riempiono. Uno z-index alto su un elemento annidato non basta a farlo comparire
+        // sopra una pianta se il suo genitore (l'aiuola) ha già uno z-index più basso di quella
+        // pianta — è propagato dal genitore, non "scavalcabile" dall'interno. Confermato con un
+        // test reale in browser: una pianta sovrapposta intercettava i click anche sull'icona.
+        const warnWrap = el("span",{class:"orto-ctrl orto-rotation-warning-wrap",
+          style:`left:${(obj.x||0)+20}px; top:${(obj.y||0)+3}px;`});
         const warnIcon = el("span",{class:"orto-rotation-warning", title:"Rotazione consigliata: tocca per i dettagli"}, "⚠️");
         warnIcon.addEventListener("click",(e)=>{
           e.stopPropagation();
@@ -5322,13 +5329,8 @@ function renderOrto(main){
           render("orto");
         });
         warnWrap.appendChild(warnIcon);
-        node.appendChild(warnWrap);
+        board.appendChild(warnWrap);
         if(activeRotationWarningId===obj.id){
-          // il popover va agganciato direttamente alla board, non annidato nell'aiuola: le
-          // aiuole hanno z-index basso apposta per stare "sotto" le piante che le riempiono,
-          // quindi qualunque cosa nidificata al loro interno (compreso un popover) resterebbe
-          // nascosta dietro qualunque pianta sovrapposta nella stessa zona — si apriva
-          // correttamente, ma era invisibile.
           const pop = el("div",{class:"orto-comment-pop orto-rotation-pop",
             style:`left:${(obj.x||0)+20}px; top:${(obj.y||0)+26}px;`});
           pop.addEventListener("click", ev=>ev.stopPropagation());
