@@ -5081,17 +5081,18 @@ function renderOrto(main){
       if(current && current.moveTarget) current.moveTarget.classList.remove("orto-picked-up");
       mode = null; current = null;
     }
-    function startPan(pt){
+    function startPan(pt, pointerId){
       mode = "panning";
-      current = {startX:pt.x, startY:pt.y, startScrollLeft:boardWrap.scrollLeft, startScrollTop:boardWrap.scrollTop};
+      current = {startX:pt.x, startY:pt.y, startScrollLeft:boardWrap.scrollLeft, startScrollTop:boardWrap.scrollTop, pointerId, captured:false};
     }
-    function startPending(node, pt){
+    function startPending(node, pt, pointerId){
       const drag = node._ortoDrag;
       mode = "pending";
       current = {
         item:drag.item, opts:drag.opts||{}, startX:pt.x, startY:pt.y,
         startLeft:drag.item.x||0, startTop:drag.item.y||0,
         moveTarget:(drag.opts && drag.opts.moveTarget) || node,
+        pointerId,
         longPressTimer:setTimeout(activateDrag, LONG_PRESS_MS)
       };
     }
@@ -5101,12 +5102,13 @@ function renderOrto(main){
       current.longPressTimer = null;
       current.moved = false;
       current.moveTarget.classList.add("orto-picked-up");
+      boardWrap.setPointerCapture(current.pointerId);
       const isPin = !!current.opts.isPin;
       const elemW = current.moveTarget.offsetWidth||0, elemH = current.moveTarget.offsetHeight||0;
       current.maxX = isPin ? (ORTO_CANVAS_W-24) : Math.max(0, ORTO_CANVAS_W-elemW);
       current.maxY = isPin ? (ORTO_CANVAS_H-24) : Math.max(0, ORTO_CANVAS_H-elemH);
     }
-    function startPinch(pts){
+    function startPinch(pts, ids){
       mode = "pinching";
       const startZoom = ortoZoom;
       const rect = boardWrap.getBoundingClientRect();
@@ -5116,20 +5118,25 @@ function renderOrto(main){
         worldX:(boardWrap.scrollLeft + (m.x-rect.left)) / startZoom,
         worldY:(boardWrap.scrollTop + (m.y-rect.top)) / startZoom
       };
+      // due dita: gesto inequivocabile, qui la cattura immediata non rischia di rubare un tap
+      ids.forEach(id=>boardWrap.setPointerCapture(id));
     }
 
     boardWrap.addEventListener("pointerdown",(e)=>{
       if(e.pointerType!=="touch") return;
       if(e.target.tagName==="INPUT" || e.target.tagName==="TEXTAREA" || e.target.tagName==="BUTTON" || e.target.closest(".orto-ctrl")) return;
       touches.set(e.pointerId, {x:e.clientX, y:e.clientY});
-      boardWrap.setPointerCapture(e.pointerId);
+      // niente setPointerCapture qui: se fosse solo un tap (apri commento, seleziona pianta,
+      // deseleziona toccando lo sfondo), catturare subito il puntatore impedisce al click
+      // "nativo" del browser di raggiungere l'elemento toccato. Si cattura solo più avanti,
+      // quando il gesto si trasforma davvero in un trascinamento/pan/pinch continuo.
       if(touches.size===1){
         const objNode = e.target.closest(".orto-obj, .orto-comment-pin");
-        if(objNode && objNode._ortoDrag) startPending(objNode, {x:e.clientX, y:e.clientY});
-        else startPan({x:e.clientX, y:e.clientY});
+        if(objNode && objNode._ortoDrag) startPending(objNode, {x:e.clientX, y:e.clientY}, e.pointerId);
+        else startPan({x:e.clientX, y:e.clientY}, e.pointerId);
       } else if(touches.size===2){
         endGesture();
-        startPinch([...touches.values()]);
+        startPinch([...touches.values()], [...touches.keys()]);
       }
     });
 
@@ -5156,6 +5163,7 @@ function renderOrto(main){
         return;
       }
       if(mode==="panning"){
+        if(!current.captured){ boardWrap.setPointerCapture(current.pointerId); current.captured = true; }
         e.preventDefault();
         boardWrap.scrollLeft = current.startScrollLeft - (e.clientX-current.startX);
         boardWrap.scrollTop = current.startScrollTop - (e.clientY-current.startY);
