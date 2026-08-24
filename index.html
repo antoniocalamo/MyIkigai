@@ -1191,7 +1191,7 @@ input.pack-num{
   display:flex; align-items:center; justify-content:center;
 }
 .stat-weather-link:hover{opacity:.75;}
-.stat-weather-source{font-size:8.5px; color:var(--ink-soft); opacity:.6; margin-top:3px; text-align:right;}
+.stat-weather-source{font-size:8px; color:var(--ink-soft); opacity:.6; text-align:right; line-height:1.35; flex-shrink:0; white-space:nowrap;}
 
 /* ---- Priorities KPI card ---- */
 .priorities-level{display:flex; align-items:center; gap:6px;}
@@ -3985,8 +3985,11 @@ function statCard(kpiKey){
     const forecastWrap = el("div",{class:"stat-weather-row"});
     const forecastRow = el("div",{class:"stat-weather-3d"});
     forecastWrap.appendChild(forecastRow);
+    forecastWrap.appendChild(el("div",{class:"stat-weather-source"}, [
+      el("div",{}, "Dati: Open-Meteo"),
+      el("div",{}, "il link ↗ apre 3bmeteo.com")
+    ]));
     card.appendChild(forecastWrap);
-    card.appendChild(el("div",{class:"stat-weather-source"}, "Dati: Open-Meteo · il link ↗ apre 3bmeteo.com"));
     ensureWeatherLoaded().then(w=>{
       if(!w){ weatherLine.textContent = "meteo non disponibile"; return; }
       const locName = (state.weatherLocation||DEFAULTS.weatherLocation).name;
