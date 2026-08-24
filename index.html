@@ -972,6 +972,10 @@ input.pack-num{
 .gantt-row-more-btn:hover{color:var(--ink);}
 .gantt-budget-chip{font-size:10px; color:var(--ink-soft); flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .gantt-budget-chip.over{color:var(--urgent-text, var(--rust)); font-weight:700;}
+.gantt-category-chip{
+  font-size:9.5px; font-weight:600; color:var(--ink-soft); flex-shrink:0; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:90px; padding:1px 6px; background:var(--paper-2); border-radius:8px; border:1px solid var(--line);
+}
 .gantt-project-budget-summary{font-size:13px; color:var(--ink-soft);}
 .gantt-project-budget-summary.over{color:var(--urgent-text, var(--rust)); font-weight:600;}
 .gantt-scroll{overflow-x:auto; overflow-y:hidden; flex:1; min-width:0;}
@@ -991,6 +995,21 @@ input.pack-num{
 .gantt-group-count{margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600;}
 .gantt-group-label{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .gantt-view-switch{display:flex; gap:6px;}
+.gantt-toolbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px;}
+.gantt-toolbar-field{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft); font-weight:600;}
+.gantt-toolbar-select{
+  font-size:12px; padding:4px 6px; border-radius:7px; border:1px solid var(--line); background:var(--card); color:var(--ink);
+}
+.gantt-toolbar-filter{display:flex; gap:6px;}
+.gantt-toolbar-zoom{display:flex; align-items:center; gap:4px; margin-left:auto;}
+.gantt-toolbar-zoom .btn{padding:3px 9px;}
+.gantt-key-toggle{
+  border:none; background:transparent; padding:0; margin:0; width:15px; height:15px; flex-shrink:0;
+  color:var(--ink-soft); opacity:.35; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+}
+.gantt-key-toggle svg{width:100%; height:100%;}
+.gantt-key-toggle:hover{opacity:.75;}
+.gantt-key-toggle.active{opacity:1; color:var(--mustard, #C9962C);}
 .project-status-breakdown{display:flex; gap:12px; margin-top:4px; flex-wrap:wrap;}
 .project-status-breakdown-item{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink);}
 .project-status-bar{display:flex; height:8px; border-radius:4px; overflow:hidden; margin-bottom:8px;}
@@ -1011,22 +1030,29 @@ input.pack-num{
 .project-dash-list-date{margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); flex-shrink:0;}
 .project-dash-empty{font-size:12.5px; color:var(--ink-soft); font-style:italic;}
 .project-table-wrap{margin-top:20px; overflow-x:auto; -webkit-overflow-scrolling:touch;}
-.project-table{min-width:806px;}
+.project-table{min-width:1080px;}
 .project-table-title{font-family:'Fraunces',serif; font-weight:600; font-size:15px; margin-bottom:8px;}
 .project-table-header{
-  display:grid; grid-template-columns: 96px minmax(160px,1fr) 92px 95px 95px 56px 130px 26px; gap:8px;
+  display:grid; grid-template-columns: 96px minmax(150px,1fr) 108px 100px 95px 95px 56px 130px minmax(130px,1fr) 26px; gap:8px;
   padding:0 6px 7px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px;
   color:var(--ink-soft); border-bottom:1px solid var(--line);
 }
 .project-table-row{
-  display:grid; grid-template-columns: 96px minmax(160px,1fr) 92px 95px 95px 56px 130px 26px; gap:8px; align-items:center;
+  display:grid; grid-template-columns: 96px minmax(150px,1fr) 108px 100px 95px 95px 56px 130px minmax(130px,1fr) 26px; gap:8px; align-items:center;
   padding:6px; border-bottom:1px solid var(--line); font-size:12.5px;
 }
 .project-table-row:hover{background:var(--paper-2);}
+.project-table-name-cell{display:flex; align-items:flex-start; gap:5px; min-width:0;}
 .project-table-name-input{
   overflow:hidden; text-overflow:clip; white-space:pre-wrap; word-break:break-word;
   resize:none; width:100%; box-sizing:border-box; line-height:1.35; padding:4px; height:auto;
 }
+.project-table-pill-input{
+  border:1px solid var(--line); border-radius:6px; background:var(--paper-2); color:var(--ink-soft);
+  font-size:11px; padding:4px 6px; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;
+  text-overflow:ellipsis; white-space:nowrap; overflow:hidden;
+}
+.project-table-pill-input:focus{outline:none; background:var(--card); color:var(--ink);}
 .project-table-date-compact{
   position:relative; display:block; width:100%; box-sizing:border-box; cursor:pointer;
   border:1px solid var(--line); border-radius:6px; padding:3px 6px;
@@ -2461,7 +2487,7 @@ window.addEventListener("beforeunload", (e)=>{
   if(pendingSaves > 0){ e.preventDefault(); e.returnValue = ""; }
 });
 
-let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, projectAssignees:null, ortoWeatherLocation:null, mobilePinned:null, dojoReminders:null };
+let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, ortoWeatherLocation:null, mobilePinned:null, dojoReminders:null };
 let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null;
 let activeMaintenanceItem = null;
 let goodThingPick = null;
@@ -2915,7 +2941,7 @@ async function loadAll(){
     dashboardRaw, ortoRaw, weatherLocationRaw, ortoWeatherLocationRaw,
     tripsRaw, bbqsRaw, maintenanceItemsRaw,
     financeRaw, sharedBoardsRaw, projectsRaw, projectsPrivateRaw,
-    projectAssigneesRaw, customTabsRaw, customTabsPrivateRaw,
+    customTabsRaw, customTabsPrivateRaw,
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
     taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw
@@ -2931,7 +2957,6 @@ async function loadAll(){
     store.get("sharedBoards", DEFAULTS.sharedBoards),
     store.get("projects", DEFAULTS.projects),
     store.get(privKey("projects"), []),
-    store.get("projectAssignees", []),
     store.get("customTabs", []),
     store.get(privKey("customTabs"), []),
     store.get(privKey("hiddenBuiltins"), []),
@@ -3105,15 +3130,9 @@ async function loadAll(){
     if(t.company==null) t.company = "";
     if(t.budget===undefined) t.budget = null;
     if(t.actualCost===undefined) t.actualCost = null;
+    if(t.category==null) t.category = "";
+    if(t.keyTask==null) t.keyTask = false;
   }));
-  state.projectAssignees = projectAssigneesRaw;
-  // pulizia una tantum: "Io"/"Moglie" erano i valori fissi della versione precedente,
-  // ora sostituiti da suggerimenti a testo libero scelti dall'utente
-  const cleanedAssignees = state.projectAssignees.filter(n=> !["io","moglie"].includes(String(n).trim().toLowerCase()));
-  if(cleanedAssignees.length !== state.projectAssignees.length){
-    state.projectAssignees = cleanedAssignees;
-    store.setQuiet("projectAssignees", state.projectAssignees);
-  }
   state.customTabs = customTabsRaw;
   state.customTabs.forEach(t=>migrateColorField(t, "color"));
   state.customTabsPrivate = customTabsPrivateRaw;
@@ -6483,7 +6502,6 @@ function renderTripDetail(detail, trip){
 }
 
 /* ---------------- Progetti: vista Gantt nativa ---------------- */
-const GANTT_PX_PER_DAY = 28;
 const GANTT_ROW_H = 76;
 const GANTT_GROUP_H = 32;
 function ganttStatusPillStyle(sel){
@@ -6526,26 +6544,124 @@ function saveProjects(quiet){
 function ganttSave(project){ saveProjects(false); }
 function ganttSaveQuiet(project){ saveProjects(true); }
 let ganttViewMode = {};
-function ensureAssigneeDatalist(){
-  let dl = document.getElementById("assignee-suggestions");
-  if(!dl){ dl = document.createElement("datalist"); dl.id = "assignee-suggestions"; document.body.appendChild(dl); }
-  dl.innerHTML = "";
-  (state.projectAssignees||[]).forEach(name=> dl.appendChild(el("option",{value:name})));
-}
+// Testo libero, senza suggerimenti: un elenco di nomi "imparati" creava confusione quando
+// venivano digitate combinazioni come "Io e Cri" (ambiguo per chi legge da un altro account).
 function buildAssigneeInput(t, cls, onSaved){
-  ensureAssigneeDatalist();
-  const inp = el("input",{type:"text", class:cls, list:"assignee-suggestions", placeholder:"—", value: t.assignee||""});
+  const inp = el("input",{type:"text", class:cls, placeholder:"—", value: t.assignee||""});
   inp.addEventListener("change", ()=>{
-    const val = inp.value.trim();
-    t.assignee = val;
-    if(val && !state.projectAssignees.some(n=> n.toLowerCase()===val.toLowerCase())){
-      state.projectAssignees.push(val);
-      store.setQuiet("projectAssignees", state.projectAssignees);
-      ensureAssigneeDatalist();
-    }
+    t.assignee = inp.value.trim();
     onSaved();
   });
   return inp;
+}
+// Suggerimenti di categoria/workpackage: derivati al volo dalle categorie già in uso nel
+// progetto corrente (mai persistiti a parte), così restano sempre coerenti con i dati reali.
+function ensureCategoryDatalist(project){
+  const dlId = "category-suggestions-"+project.id;
+  let dl = document.getElementById(dlId);
+  if(!dl){ dl = document.createElement("datalist"); dl.id = dlId; document.body.appendChild(dl); }
+  dl.innerHTML = "";
+  const cats = Array.from(new Set((project.data.tasks||[]).map(t=>(t.category||"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"it"));
+  cats.forEach(name=> dl.appendChild(el("option",{value:name})));
+  return dlId;
+}
+function buildCategoryInput(project, t, cls, onSaved){
+  const dlId = ensureCategoryDatalist(project);
+  const inp = el("input",{type:"text", class:cls, list:dlId, placeholder:"Categoria", value: t.category||""});
+  inp.addEventListener("change", ()=>{
+    t.category = inp.value.trim();
+    onSaved();
+  });
+  return inp;
+}
+function keyTaskToggle(t, onSaved){
+  const btn = el("button",{type:"button", class:"gantt-key-toggle"+(t.keyTask?" active":""), title: t.keyTask?"Attività chiave (clicca per togliere)":"Segna come attività chiave", html:ICON_STAR_KPI});
+  btn.addEventListener("click",(e)=>{
+    e.stopPropagation();
+    t.keyTask = !t.keyTask;
+    btn.classList.toggle("active", t.keyTask);
+    btn.title = t.keyTask?"Attività chiave (clicca per togliere)":"Segna come attività chiave";
+    onSaved();
+  });
+  return btn;
+}
+// --- Raggruppamento (Stato/Categoria) e ordinamento, condivisi da Tabella e Timeline ---------
+let ganttGroupMode = {}; // project.id -> "status" | "category"
+let ganttSortMode = {};  // project.id -> chiave di TASK_SORT_OPTIONS
+let ganttZoomIdx = {};   // project.id -> indice in GANTT_ZOOM_LEVELS (solo vista Timeline)
+let ganttKeyFilter = {}; // project.id -> "all" | "key" (solo vista Timeline)
+const GANTT_ZOOM_LEVELS = [14,18,22,28,36,46,58];
+const GANTT_ZOOM_DEFAULT_IDX = GANTT_ZOOM_LEVELS.indexOf(28);
+const TASK_SORT_OPTIONS = [
+  ["start","Data inizio"], ["end","Data fine"], ["name","Nome"], ["category","Categoria"], ["assignee","Assegnatario"]
+];
+function sortTasksBy(tasks, sortKey){
+  const arr = tasks.slice();
+  function cmpStr(a,b){
+    const av = (a||"").trim(), bv = (b||"").trim();
+    if(!av && !bv) return 0;
+    if(!av) return 1; // le attività senza valore vanno in fondo
+    if(!bv) return -1;
+    return av.localeCompare(bv,"it");
+  }
+  function cmpDate(a,b){ a=a||""; b=b||""; return a<b ? -1 : a>b ? 1 : 0; }
+  arr.sort((a,b)=>{
+    if(sortKey==="end") return cmpDate(a.end,b.end);
+    if(sortKey==="name") return cmpStr(a.name,b.name);
+    if(sortKey==="category") return cmpStr(a.category,b.category);
+    if(sortKey==="assignee") return cmpStr(a.assignee,b.assignee);
+    return cmpDate(a.start,b.start);
+  });
+  return arr;
+}
+// Ritorna [ [chiaveGruppo, etichetta, task[]], ... ]. Per "categoria" i gruppi sono derivati
+// al volo dalle categorie presenti sui task (ordine alfabetico, "Senza categoria" in fondo) —
+// mai un elenco fisso, così non si disallinea mai da quello che l'utente ha scritto davvero.
+function buildTaskGroups(tasks, groupMode){
+  if(groupMode==="category"){
+    const map = {}, order = [];
+    tasks.forEach(t=>{
+      const key = (t.category||"").trim();
+      if(!(key in map)){ map[key] = []; order.push(key); }
+      map[key].push(t);
+    });
+    order.sort((a,b)=>{
+      if(!a && !b) return 0;
+      if(!a) return 1;
+      if(!b) return -1;
+      return a.localeCompare(b,"it");
+    });
+    return order.map(key=> ["cat:"+key, key || "Senza categoria", map[key]]);
+  }
+  const GROUP_DEFS = [["todo","Da fare"],["doing","In corso"],["done","Fatto"]];
+  const map = {todo:[], doing:[], done:[]};
+  tasks.forEach(t=> (map[t.status||"todo"]||map.todo).push(t));
+  return GROUP_DEFS.map(([k,label])=> [k, label, map[k]]);
+}
+function isTaskGroupCollapsed(project, key){ return !!(project.data.collapsedGroups && project.data.collapsedGroups[key]); }
+function toggleTaskGroupCollapsed(project, key){
+  if(!project.data.collapsedGroups) project.data.collapsedGroups = {};
+  project.data.collapsedGroups[key] = !project.data.collapsedGroups[key];
+}
+function buildGroupSortToolbar(project){
+  const wrap = el("div",{class:"gantt-toolbar"});
+  const groupWrap = el("label",{class:"gantt-toolbar-field"},"Raggruppa per");
+  const groupSel = el("select",{class:"gantt-toolbar-select"});
+  [["status","Stato"],["category","Categoria"]].forEach(([v,l])=> groupSel.appendChild(el("option",{value:v},l)));
+  groupSel.value = ganttGroupMode[project.id] || "status";
+  groupSel.addEventListener("change", ()=>{ ganttGroupMode[project.id] = groupSel.value; render("progetti"); });
+  groupWrap.appendChild(groupSel);
+  wrap.appendChild(groupWrap);
+
+  const sortWrap = el("label",{class:"gantt-toolbar-field"},"Ordina per");
+  const sortSel = el("select",{class:"gantt-toolbar-select"});
+  TASK_SORT_OPTIONS.forEach(([v,l])=> sortSel.appendChild(el("option",{value:v},l)));
+  sortSel.value = ganttSortMode[project.id] || "start";
+  sortSel.addEventListener("change", ()=>{ ganttSortMode[project.id] = sortSel.value; render("progetti"); });
+  sortWrap.appendChild(sortSel);
+  wrap.appendChild(sortWrap);
+
+  return wrap;
 }
 function openProjectTaskModal(project, task, save){
   openModal((modal, close)=>{
@@ -6568,6 +6684,22 @@ function openProjectTaskModal(project, task, save){
     assigneeWrap.appendChild(assigneeSel);
     statusDoingRow.appendChild(statusWrap); statusDoingRow.appendChild(assigneeWrap);
     modal.appendChild(statusDoingRow);
+
+    const categoryKeyRow = el("div",{class:"field-row-2"});
+    const categoryWrap = el("div",{});
+    categoryWrap.appendChild(el("div",{class:"field-label", style:"margin-top:0;"},"Categoria / Workpackage"));
+    const categoryInp = buildCategoryInput(project, task, "", ()=>{});
+    categoryWrap.appendChild(categoryInp);
+    const keyTaskWrap = el("div",{});
+    keyTaskWrap.appendChild(el("div",{class:"field-label", style:"margin-top:0;"},"Attività chiave"));
+    const keyTaskLabel = el("label",{style:"display:flex; align-items:center; gap:7px; cursor:pointer;"});
+    const keyTaskCheck = el("input",{type:"checkbox"});
+    keyTaskCheck.checked = !!task.keyTask;
+    keyTaskLabel.appendChild(keyTaskCheck);
+    keyTaskLabel.appendChild(document.createTextNode("Evidenziala nella timeline"));
+    keyTaskWrap.appendChild(keyTaskLabel);
+    categoryKeyRow.appendChild(categoryWrap); categoryKeyRow.appendChild(keyTaskWrap);
+    modal.appendChild(categoryKeyRow);
 
     const dateRow = el("div",{class:"field-row-2"});
     const startWrap = el("div",{});
@@ -6668,6 +6800,8 @@ function openProjectTaskModal(project, task, save){
       task.status = statusSel.value;
       task.done = task.status === "done";
       task.assignee = assigneeSel.value;
+      task.category = categoryInp.value.trim();
+      task.keyTask = keyTaskCheck.checked;
       task.company = companyInp.value.trim();
       task.budget = budgetInp.value.trim()==="" ? null : parseFloat(budgetInp.value);
       task.actualCost = costInp.value.trim()==="" ? null : parseFloat(costInp.value);
@@ -6715,8 +6849,10 @@ function projectStatCard(key, ctx){
   if(key==="budget"){
     if(!ctx.hasMoneyData) return null;
     const over = ctx.totCost>ctx.totBudget;
-    const c = el("div",{class:"stat-card wide-mobile", style: over ? "border-left-color:var(--urgent-text, var(--rust));" : ""});
-    c.appendChild(el("div",{class:"stat-value", style: over ? "color:var(--urgent-text, var(--rust));" : ""}, "€"+fmtEuro(ctx.totCost)+" / €"+fmtEuro(ctx.totBudget)));
+    const under = ctx.totBudget>0 && !over;
+    const barColor = over ? "var(--urgent-text, var(--rust))" : under ? "var(--status-done)" : "";
+    const c = el("div",{class:"stat-card wide-mobile", style: barColor ? ("border-left-color:"+barColor+";") : ""});
+    c.appendChild(el("div",{class:"stat-value", style: barColor ? ("color:"+barColor+";") : ""}, "€"+fmtEuro(ctx.totCost)+" / €"+fmtEuro(ctx.totBudget)));
     c.appendChild(el("div",{class:"stat-label"}, "Speso su budget totale"));
     return c;
   }
@@ -6842,32 +6978,30 @@ function renderProjectDashboard(detail, project, tasks, totalPct, totBudget, tot
   renderProjectTable(detail, project, tasks);
 }
 function renderProjectTable(detail, project, tasks){
-  const GROUP_DEFS = [["todo","Da fare"],["doing","In corso"],["done","Fatto"]];
-  const groupsMap = {todo:[], doing:[], done:[]};
-  tasks.forEach(t=> (groupsMap[t.status||"todo"]||groupsMap.todo).push(t));
-  function isGroupCollapsed(status){ return !!(project.data.collapsedGroups && project.data.collapsedGroups[status]); }
+  const groupMode = ganttGroupMode[project.id] || "status";
+  const sortMode = ganttSortMode[project.id] || "start";
+  const groups = buildTaskGroups(tasks, groupMode);
 
   const wrap = el("div",{class:"project-table-wrap"});
   wrap.appendChild(el("div",{class:"project-table-title"}, "Tutte le attività"));
   const table = el("div",{class:"project-table"});
 
   const headerRow = el("div",{class:"project-table-header"});
-  ["Stato","Nome","Assegnatario","Inizio","Fine","Avanz.","Budget / Costo",""].forEach(l=>
+  ["Stato","Nome","Categoria","Assegnatario","Inizio","Fine","Avanz.","Budget / Costo","Note",""].forEach(l=>
     headerRow.appendChild(el("div",{}, l)));
   table.appendChild(headerRow);
 
-  GROUP_DEFS.forEach(([status,label])=>{
-    const groupTasks = groupsMap[status];
-    const collapsed = isGroupCollapsed(status);
+  groups.forEach(([key,label,groupTasksRaw])=>{
+    const groupTasks = sortTasksBy(groupTasksRaw, sortMode);
+    const collapsed = isTaskGroupCollapsed(project, key);
 
     const groupRow = el("div",{class:"gantt-group-row", style:"height:32px;"});
     groupRow.appendChild(el("span",{class:"gantt-group-chevron"+(collapsed?" collapsed":"")}, "▼"));
-    groupRow.appendChild(el("span",{class:"gantt-group-dot "+status}));
+    if(groupMode==="status") groupRow.appendChild(el("span",{class:"gantt-group-dot "+key}));
     groupRow.appendChild(el("span",{class:"gantt-group-label"}, label));
     groupRow.appendChild(el("span",{class:"gantt-group-count"}, String(groupTasks.length)));
     groupRow.addEventListener("click", ()=>{
-      if(!project.data.collapsedGroups) project.data.collapsedGroups = {};
-      project.data.collapsedGroups[status] = !project.data.collapsedGroups[status];
+      toggleTaskGroupCollapsed(project, key);
       ganttSaveQuiet(project); render("progetti");
     });
     table.appendChild(groupRow);
@@ -6891,6 +7025,8 @@ function renderProjectTable(detail, project, tasks){
       });
       row.appendChild(statusSel);
 
+      const nameCell = el("div",{class:"project-table-name-cell"});
+      nameCell.appendChild(keyTaskToggle(t, ()=>{ ganttSaveQuiet(project); render("progetti"); }));
       const nameInp = el("textarea",{rows:"1", class:"gantt-name-input project-table-name-input"+(t.done?" done":"")});
       nameInp.value = t.name;
       nameInp.addEventListener("input", ()=>autoResize(nameInp));
@@ -6898,10 +7034,14 @@ function renderProjectTable(detail, project, tasks){
         t.name = nameInp.value.trim() || t.name;
         ganttSave(project); render("progetti");
       });
-      row.appendChild(nameInp);
+      nameCell.appendChild(nameInp);
+      row.appendChild(nameCell);
       autoResize(nameInp);
 
-      const assigneeSel = buildAssigneeInput(t, "gantt-pill-select assignee", ()=>{ ganttSave(project); });
+      const categoryInp = buildCategoryInput(project, t, "project-table-pill-input", ()=>{ ganttSave(project); render("progetti"); });
+      row.appendChild(categoryInp);
+
+      const assigneeSel = buildAssigneeInput(t, "project-table-pill-input", ()=>{ ganttSave(project); });
       row.appendChild(assigneeSel);
 
       const startCell = buildCompactDateInput(t.start, (val)=>{
@@ -6948,17 +7088,27 @@ function renderProjectTable(detail, project, tasks){
       }
       budgetInp.addEventListener("change", ()=>{
         t.budget = budgetInp.value.trim()==="" ? null : parseFloat(budgetInp.value);
-        ganttSave(project); refreshMoneyWarn();
+        ganttSave(project); refreshMoneyWarn(); render("progetti");
       });
       costInp.addEventListener("change", ()=>{
         t.actualCost = costInp.value.trim()==="" ? null : parseFloat(costInp.value);
-        ganttSave(project); refreshMoneyWarn();
+        ganttSave(project); refreshMoneyWarn(); render("progetti");
       });
       refreshMoneyWarn();
       moneyWrap.appendChild(budgetInp); moneyWrap.appendChild(costInp); moneyWrap.appendChild(warnIcon);
       row.appendChild(moneyWrap);
 
-      const moreBtn = el("button",{class:"gantt-row-more-btn", title:"Altri dettagli (note, ditta, colore)"}, "⋯");
+      const notesInp = el("textarea",{rows:"1", class:"gantt-name-input project-table-name-input", placeholder:"—"});
+      notesInp.value = t.notes||"";
+      notesInp.addEventListener("input", ()=>autoResize(notesInp));
+      notesInp.addEventListener("change", ()=>{
+        t.notes = notesInp.value.trim();
+        ganttSave(project);
+      });
+      row.appendChild(notesInp);
+      autoResize(notesInp);
+
+      const moreBtn = el("button",{class:"gantt-row-more-btn", title:"Altri dettagli (ditta, colore)"}, "⋯");
       moreBtn.addEventListener("click", ()=> openProjectTaskModal(project, t, ganttSave));
       row.appendChild(moreBtn);
 
@@ -7002,13 +7152,48 @@ function renderProjectDetail(detail, project){
     return;
   }
 
+  detail.appendChild(buildGroupSortToolbar(project));
+
   if(mode==="dashboard"){
     renderProjectDashboard(detail, project, tasks, totalPct, totBudget, totCost, hasMoneyData);
     return;
   }
 
-  const { rangeStart, totalDays } = ganttComputeRange(tasks);
-  const chartWidth = totalDays * GANTT_PX_PER_DAY;
+  const zoomIdx = ganttZoomIdx[project.id]!=null ? ganttZoomIdx[project.id] : GANTT_ZOOM_DEFAULT_IDX;
+  const pxPerDay = GANTT_ZOOM_LEVELS[zoomIdx];
+  const keyFilter = ganttKeyFilter[project.id] || "all";
+
+  const timelineToolbar = el("div",{class:"gantt-toolbar"});
+  const filterWrap = el("div",{class:"gantt-toolbar-filter"});
+  const allBtn = el("button",{class:"btn small"+(keyFilter==="all"?" primary":"")},"Tutte le attività");
+  const keyBtn = el("button",{class:"btn small"+(keyFilter==="key"?" primary":"")},"★ Solo attività chiave");
+  allBtn.addEventListener("click", ()=>{ ganttKeyFilter[project.id]="all"; render("progetti"); });
+  keyBtn.addEventListener("click", ()=>{ ganttKeyFilter[project.id]="key"; render("progetti"); });
+  filterWrap.appendChild(allBtn); filterWrap.appendChild(keyBtn);
+  timelineToolbar.appendChild(filterWrap);
+  const zoomWrap = el("div",{class:"gantt-toolbar-zoom"});
+  const zoomOutBtn = el("button",{class:"btn small ghost", title:"Riduci zoom"}, "−");
+  const zoomInBtn = el("button",{class:"btn small ghost", title:"Aumenta zoom"}, "+");
+  zoomOutBtn.disabled = zoomIdx<=0;
+  zoomInBtn.disabled = zoomIdx>=GANTT_ZOOM_LEVELS.length-1;
+  zoomOutBtn.addEventListener("click", ()=>{ if(zoomIdx>0){ ganttZoomIdx[project.id]=zoomIdx-1; render("progetti"); } });
+  zoomInBtn.addEventListener("click", ()=>{ if(zoomIdx<GANTT_ZOOM_LEVELS.length-1){ ganttZoomIdx[project.id]=zoomIdx+1; render("progetti"); } });
+  zoomWrap.appendChild(zoomOutBtn); zoomWrap.appendChild(zoomInBtn);
+  timelineToolbar.appendChild(zoomWrap);
+  detail.appendChild(timelineToolbar);
+
+  const displayTasks = keyFilter==="key" ? tasks.filter(t=>t.keyTask) : tasks;
+  if(!displayTasks.length){
+    detail.appendChild(emptyState("Nessuna attività chiave in questo progetto.", ICON_STAR_KPI));
+    return;
+  }
+
+  const groupMode = ganttGroupMode[project.id] || "status";
+  const sortMode = ganttSortMode[project.id] || "start";
+  const groups = buildTaskGroups(displayTasks, groupMode);
+
+  const { rangeStart, totalDays } = ganttComputeRange(displayTasks);
+  const chartWidth = totalDays * pxPerDay;
   const todayOffset = ganttDateToOffset(isoDate(new Date()), rangeStart);
 
   const ganttWrap = el("div",{class:"gantt-wrap"});
@@ -7019,7 +7204,6 @@ function renderProjectDetail(detail, project){
 
   // header con mesi e giorni
   const headerRow = el("div",{class:"gantt-header", style:`width:${chartWidth}px;`});
-  let d = new Date(rangeStart);
   let monthStartOffset = 0, curMonthLabel = "";
   const monthsRow = el("div",{class:"gantt-months", style:`width:${chartWidth}px;`});
   const daysRow = el("div",{class:"gantt-days", style:`width:${chartWidth}px;`});
@@ -7028,50 +7212,44 @@ function renderProjectDetail(detail, project){
     const monthLabel = cellDate.toLocaleDateString("it-IT",{month:"short", year:"2-digit"});
     if(monthLabel !== curMonthLabel){
       if(curMonthLabel){
-        monthsRow.appendChild(el("div",{class:"gantt-month-seg", style:`width:${(i-monthStartOffset)*GANTT_PX_PER_DAY}px;`}, curMonthLabel));
+        monthsRow.appendChild(el("div",{class:"gantt-month-seg", style:`width:${(i-monthStartOffset)*pxPerDay}px;`}, curMonthLabel));
       }
       curMonthLabel = monthLabel; monthStartOffset = i;
     }
     const isWeekend = cellDate.getDay()===0 || cellDate.getDay()===6;
-    daysRow.appendChild(el("div",{class:"gantt-day-cell"+(isWeekend?" weekend":""), style:`width:${GANTT_PX_PER_DAY}px;`}, String(cellDate.getDate())));
+    daysRow.appendChild(el("div",{class:"gantt-day-cell"+(isWeekend?" weekend":""), style:`width:${pxPerDay}px;`}, String(cellDate.getDate())));
   }
-  monthsRow.appendChild(el("div",{class:"gantt-month-seg", style:`width:${(totalDays-monthStartOffset)*GANTT_PX_PER_DAY}px;`}, curMonthLabel));
+  monthsRow.appendChild(el("div",{class:"gantt-month-seg", style:`width:${(totalDays-monthStartOffset)*pxPerDay}px;`}, curMonthLabel));
   headerRow.appendChild(monthsRow); headerRow.appendChild(daysRow);
   chartInner.appendChild(headerRow);
 
-  const GROUP_DEFS = [["todo","Da fare"],["doing","In corso"],["done","Fatto"]];
-  const groupsMap = {todo:[], doing:[], done:[]};
-  tasks.forEach(t=> (groupsMap[t.status||"todo"]||groupsMap.todo).push(t));
-  function isGroupCollapsed(status){ return !!(project.data.collapsedGroups && project.data.collapsedGroups[status]); }
-
   let totalHeight = 0;
-  GROUP_DEFS.forEach(([status])=>{
+  groups.forEach(([key,,groupTasks])=>{
     totalHeight += GANTT_GROUP_H;
-    if(!isGroupCollapsed(status)) totalHeight += groupsMap[status].length*GANTT_ROW_H;
+    if(!isTaskGroupCollapsed(project, key)) totalHeight += groupTasks.length*GANTT_ROW_H;
   });
 
   const bodyWrap = el("div",{class:"gantt-body", style:`width:${chartWidth}px; height:${totalHeight}px;`});
   // linea "oggi"
   if(todayOffset >= 0 && todayOffset <= totalDays){
-    bodyWrap.appendChild(el("div",{class:"gantt-today-line", style:`left:${todayOffset*GANTT_PX_PER_DAY}px; height:${totalHeight}px;`}));
+    bodyWrap.appendChild(el("div",{class:"gantt-today-line", style:`left:${todayOffset*pxPerDay}px; height:${totalHeight}px;`}));
   }
   chartInner.appendChild(bodyWrap);
   scrollArea.appendChild(chartInner);
 
   let yOffset = 0;
-  GROUP_DEFS.forEach(([status,label])=>{
-    const groupTasks = groupsMap[status];
-    const collapsed = isGroupCollapsed(status);
+  groups.forEach(([key,label,groupTasksRaw])=>{
+    const groupTasks = sortTasksBy(groupTasksRaw, sortMode);
+    const collapsed = isTaskGroupCollapsed(project, key);
 
     // intestazione di sezione (comprimibile)
     const groupRow = el("div",{class:"gantt-group-row", style:`height:${GANTT_GROUP_H}px;`});
     groupRow.appendChild(el("span",{class:"gantt-group-chevron"+(collapsed?" collapsed":"")}, "▼"));
-    groupRow.appendChild(el("span",{class:"gantt-group-dot "+status}));
+    if(groupMode==="status") groupRow.appendChild(el("span",{class:"gantt-group-dot "+key}));
     groupRow.appendChild(el("span",{class:"gantt-group-label"}, label));
     groupRow.appendChild(el("span",{class:"gantt-group-count"}, String(groupTasks.length)));
     groupRow.addEventListener("click", ()=>{
-      if(!project.data.collapsedGroups) project.data.collapsedGroups = {};
-      project.data.collapsedGroups[status] = !project.data.collapsedGroups[status];
+      toggleTaskGroupCollapsed(project, key);
       ganttSaveQuiet(project); render("progetti");
     });
     labelsCol.appendChild(groupRow);
@@ -7099,6 +7277,7 @@ function renderProjectDetail(detail, project){
       });
       line1.appendChild(statusSel);
       line1.appendChild(el("span",{class:"gantt-row-status-dot gantt-group-dot "+(t.status||"todo")}));
+      line1.appendChild(keyTaskToggle(t, ()=>{ ganttSaveQuiet(project); render("progetti"); }));
 
       const nameInp = el("textarea",{rows:"2", class:"gantt-name-input gantt-timeline-name"+(t.done?" done":"")});
       nameInp.value = t.name;
@@ -7113,13 +7292,14 @@ function renderProjectDetail(detail, project){
       line1.appendChild(moreBtn);
       labelRow.appendChild(line1);
       labelRow.addEventListener("click", (e)=>{
-        if(e.target===nameInp || e.target.closest(".gantt-row-more-btn")) return;
+        if(e.target===nameInp || e.target.closest(".gantt-row-more-btn") || e.target.closest(".gantt-key-toggle")) return;
         openProjectTaskModal(project, t, ganttSave);
       });
 
       const line2 = el("div",{class:"gantt-row-line2"});
       const assigneeSel = buildAssigneeInput(t, "gantt-pill-select assignee", ()=>{ ganttSave(project); });
       line2.appendChild(assigneeSel);
+      if(t.category) line2.appendChild(el("span",{class:"gantt-category-chip"}, t.category));
       if(t.budget!=null || t.actualCost!=null){
         const over = t.budget!=null && t.actualCost!=null && t.actualCost>t.budget;
         let bLabel;
@@ -7136,7 +7316,7 @@ function renderProjectDetail(detail, project){
       const endOff = ganttDateToOffset(t.end, rangeStart);
       const durDays = Math.max(1, endOff-startOff+1);
       const bar = el("div",{class:"gantt-bar"+(t.done?" done":""), style:
-        `left:${startOff*GANTT_PX_PER_DAY}px; top:${rowTop + Math.round((GANTT_ROW_H-26)/2)}px; width:${durDays*GANTT_PX_PER_DAY - 4}px; background:${colorForIndex(t.color)||"var(--forest)"};`});
+        `left:${startOff*pxPerDay}px; top:${rowTop + Math.round((GANTT_ROW_H-26)/2)}px; width:${durDays*pxPerDay - 4}px; background:${colorForIndex(t.color)||"var(--forest)"};`});
       const fill = el("div",{class:"gantt-bar-fill", style:`width:${Math.min(100,t.progress||0)}%;`});
       bar.appendChild(fill);
       bar.appendChild(el("span",{class:"gantt-bar-label"}, t.name));
@@ -7156,8 +7336,8 @@ function renderProjectDetail(detail, project){
         function move(ev){
           const deltaPx = ev.clientX - startX;
           if(Math.abs(deltaPx) > 4) dragMoved = true;
-          const deltaDays = Math.round(deltaPx / GANTT_PX_PER_DAY);
-          bar.style.left = ((startOff+deltaDays)*GANTT_PX_PER_DAY)+"px";
+          const deltaDays = Math.round(deltaPx / pxPerDay);
+          bar.style.left = ((startOff+deltaDays)*pxPerDay)+"px";
           bar._pendingDelta = deltaDays;
         }
         function up(){
@@ -7181,10 +7361,10 @@ function renderProjectDetail(detail, project){
         leftHandle.setPointerCapture(e.pointerId);
         const startX = e.clientX;
         function move(ev){
-          const deltaDays = Math.round((ev.clientX-startX)/GANTT_PX_PER_DAY);
+          const deltaDays = Math.round((ev.clientX-startX)/pxPerDay);
           const newStartOff = Math.min(endOff, startOff+deltaDays);
-          bar.style.left = (newStartOff*GANTT_PX_PER_DAY)+"px";
-          bar.style.width = ((endOff-newStartOff+1)*GANTT_PX_PER_DAY-4)+"px";
+          bar.style.left = (newStartOff*pxPerDay)+"px";
+          bar.style.width = ((endOff-newStartOff+1)*pxPerDay-4)+"px";
           bar._pendingStartOff = newStartOff;
         }
         function up(){
@@ -7204,9 +7384,9 @@ function renderProjectDetail(detail, project){
         rightHandle.setPointerCapture(e.pointerId);
         const startX = e.clientX;
         function move(ev){
-          const deltaDays = Math.round((ev.clientX-startX)/GANTT_PX_PER_DAY);
+          const deltaDays = Math.round((ev.clientX-startX)/pxPerDay);
           const newEndOff = Math.max(startOff, endOff+deltaDays);
-          bar.style.width = ((newEndOff-startOff+1)*GANTT_PX_PER_DAY-4)+"px";
+          bar.style.width = ((newEndOff-startOff+1)*pxPerDay-4)+"px";
           bar._pendingEndOff = newEndOff;
         }
         function up(){
