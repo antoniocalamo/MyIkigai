@@ -5763,10 +5763,12 @@ async function loadOrtoWeather(container){
     const precipToday = data.daily.precipitation_sum[0];
     const today = new Date().toISOString().slice(0,10);
     if(precipToday > 0.5 && state.orto.lastWatered !== today){
+      // Segna "ultima annaffiata" come oggi, ma senza forzare un secondo ridisegno completo
+      // della scheda: era un effetto collaterale nascosto che poteva scattare in mezzo a
+      // un'altra interazione dell'utente (es. un popover appena aperto). Il campo "Ultima
+      // annaffiata/pioggia" nella toolbar si aggiornerà al prossimo ridisegno naturale.
       state.orto.lastWatered = today;
       store.set("orto", state.orto);
-      render("orto");
-      return;
     }
     container.innerHTML = "";
     container.appendChild(el("span",{class:"box-icon", html:ICON_DROP, style:"color:var(--teal);"}));
