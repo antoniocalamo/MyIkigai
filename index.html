@@ -1010,6 +1010,7 @@ input.pack-num{
 .gantt-key-toggle svg{width:100%; height:100%;}
 .gantt-key-toggle:hover{opacity:.75;}
 .gantt-key-toggle.active{opacity:1; color:var(--mustard, #C9962C);}
+.gantt-key-toggle.active svg path{fill:currentColor;}
 .project-status-breakdown{display:flex; gap:12px; margin-top:4px; flex-wrap:wrap;}
 .project-status-breakdown-item{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink);}
 .project-status-bar{display:flex; height:8px; border-radius:4px; overflow:hidden; margin-bottom:8px;}
@@ -6662,8 +6663,10 @@ function toggleTaskGroupCollapsed(project, key){
   if(!project.data.collapsedGroups) project.data.collapsedGroups = {};
   project.data.collapsedGroups[key] = !project.data.collapsedGroups[key];
 }
-function buildGroupSortToolbar(project){
-  const wrap = el("div",{class:"gantt-toolbar"});
+// Aggiunge i controlli "Raggruppa per" / "Ordina per" dentro un contenitore .gantt-toolbar
+// già esistente — così la Timeline può metterli nella stessa riga di filtro/zoom, mentre la
+// Tabella li mostra da soli in una riga propria (vedi buildGroupSortToolbar sotto).
+function appendGroupSortControls(wrap, project){
   const groupWrap = el("label",{class:"gantt-toolbar-field"},"Raggruppa per");
   const groupSel = el("select",{class:"gantt-toolbar-select"});
   [["status","Stato"],["category","Categoria"]].forEach(([v,l])=> groupSel.appendChild(el("option",{value:v},l)));
@@ -6679,7 +6682,10 @@ function buildGroupSortToolbar(project){
   sortSel.addEventListener("change", ()=>{ ganttSortMode[project.id] = sortSel.value; render("progetti"); });
   sortWrap.appendChild(sortSel);
   wrap.appendChild(sortWrap);
-
+}
+function buildGroupSortToolbar(project){
+  const wrap = el("div",{class:"gantt-toolbar"});
+  appendGroupSortControls(wrap, project);
   return wrap;
 }
 function openProjectTaskModal(project, task, save){
@@ -6711,12 +6717,14 @@ function openProjectTaskModal(project, task, save){
     categoryWrap.appendChild(categoryInp);
     const keyTaskWrap = el("div",{});
     keyTaskWrap.appendChild(el("div",{class:"field-label", style:"margin-top:0;"},"Attività chiave"));
-    const keyTaskLabel = el("label",{style:"display:flex; align-items:center; gap:7px; cursor:pointer;"});
+    const keyTaskRow = el("div",{class:"modal-radio-row"});
+    const keyTaskLabel = el("label",{});
     const keyTaskCheck = el("input",{type:"checkbox"});
     keyTaskCheck.checked = !!task.keyTask;
     keyTaskLabel.appendChild(keyTaskCheck);
     keyTaskLabel.appendChild(document.createTextNode("Evidenziala nella timeline"));
-    keyTaskWrap.appendChild(keyTaskLabel);
+    keyTaskRow.appendChild(keyTaskLabel);
+    keyTaskWrap.appendChild(keyTaskRow);
     categoryKeyRow.appendChild(categoryWrap); categoryKeyRow.appendChild(keyTaskWrap);
     modal.appendChild(categoryKeyRow);
 
@@ -7171,9 +7179,8 @@ function renderProjectDetail(detail, project){
     return;
   }
 
-  detail.appendChild(buildGroupSortToolbar(project));
-
   if(mode==="dashboard"){
+    detail.appendChild(buildGroupSortToolbar(project));
     renderProjectDashboard(detail, project, tasks, totalPct, totBudget, totCost, hasMoneyData);
     return;
   }
@@ -7182,7 +7189,9 @@ function renderProjectDetail(detail, project){
   const pxPerDay = GANTT_ZOOM_LEVELS[zoomIdx];
   const keyFilter = ganttKeyFilter[project.id] || "all";
 
+  // In Timeline, Raggruppa/Ordina condividono la riga con i filtri e lo zoom.
   const timelineToolbar = el("div",{class:"gantt-toolbar"});
+  appendGroupSortControls(timelineToolbar, project);
   const filterWrap = el("div",{class:"gantt-toolbar-filter"});
   const allBtn = el("button",{class:"btn small"+(keyFilter==="all"?" primary":"")},"Tutte le attività");
   const keyBtn = el("button",{class:"btn small"+(keyFilter==="key"?" primary":"")},"★ Solo attività chiave");
