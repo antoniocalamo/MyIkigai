@@ -1218,7 +1218,8 @@ input.pack-num{
   display:flex; align-items:center; justify-content:center;
 }
 .stat-weather-link:hover{opacity:.75;}
-.stat-weather-source{font-size:8px; color:var(--ink-soft); opacity:.6; text-align:right; line-height:1.35; flex-shrink:0; white-space:nowrap;}
+.stat-weather-link-col{display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0;}
+.stat-weather-source{font-size:8px; color:var(--ink-soft); opacity:.6; text-align:right; line-height:1.3; max-width:44px;}
 
 /* ---- Priorities KPI card ---- */
 .priorities-level{display:flex; align-items:center; gap:6px;}
@@ -4005,10 +4006,8 @@ function statCard(kpiKey){
     const forecastWrap = el("div",{class:"stat-weather-row"});
     const forecastRow = el("div",{class:"stat-weather-3d"});
     forecastWrap.appendChild(forecastRow);
-    forecastWrap.appendChild(el("div",{class:"stat-weather-source"}, [
-      el("div",{}, "Dati: Open-Meteo"),
-      el("div",{}, "il link ↗ apre 3bmeteo.com")
-    ]));
+    const linkCol = el("div",{class:"stat-weather-link-col"});
+    forecastWrap.appendChild(linkCol);
     card.appendChild(forecastWrap);
     ensureWeatherLoaded().then(w=>{
       if(!w){ weatherLine.textContent = "meteo non disponibile"; return; }
@@ -4030,7 +4029,8 @@ function statCard(kpiKey){
       const locSlug = ortoLocationSlug((state.weatherLocation||DEFAULTS.weatherLocation).name);
       const link = el("a",{class:"stat-weather-link", href:`https://www.3bmeteo.com/meteo/${locSlug}`, target:"_blank", rel:"noopener", title:"Previsioni dettagliate"}, "↗");
       link.addEventListener("click",(e)=> e.stopPropagation());
-      forecastWrap.appendChild(link);
+      linkCol.appendChild(link);
+      linkCol.appendChild(el("div",{class:"stat-weather-source"}, "Dati: Open-Meteo, link apre 3bmeteo.com"));
     });
   }
   return card;
