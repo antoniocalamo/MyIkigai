@@ -1199,6 +1199,13 @@ input.pack-num{
 .stat-weather-gear{width:12px; height:12px; opacity:.4; cursor:pointer; flex-shrink:0; color:var(--ink-soft);}
 .stat-weather-gear:hover{opacity:.8;}
 .stat-weather-gear svg{width:100%; height:100%; display:block;}
+.stat-weather-gear.stat-weather-gear-circle{
+  width:20px; height:20px; border-radius:50%; background:var(--paper-2); opacity:1;
+  display:flex; align-items:center; justify-content:center;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.stat-weather-gear.stat-weather-gear-circle svg{width:11px; height:11px;}
+.stat-weather-gear.stat-weather-gear-circle:hover{background:var(--teal); color:#fff; opacity:1; transform:scale(1.08);}
 .weather-loc-results{display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;}
 .weather-loc-result{
   text-align:left; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card);
@@ -3995,7 +4002,7 @@ function statCard(kpiKey){
   if(kpiKey==="ortoWater"){
     const weatherHead = el("div",{class:"stat-weather-head"});
     const weatherLine = el("div",{class:"stat-weather"}, "meteo…");
-    const gearBtn = el("span",{class:"stat-weather-gear", html:ICON_GEAR, title:"Configura posizione meteo"});
+    const gearBtn = el("span",{class:"stat-weather-gear stat-weather-gear-circle", html:ICON_GEAR, title:"Configura posizione meteo"});
     gearBtn.addEventListener("click",(e)=>{ e.stopPropagation(); openWeatherLocationModal({
       stateKey:"weatherLocation", storeKey:"weatherLocation", title:"Posizione meteo (Home)",
       hint:"Vale solo per questo widget nella Dashboard, indipendente da quella dell'Orto.",
