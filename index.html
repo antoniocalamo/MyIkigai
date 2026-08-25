@@ -994,6 +994,18 @@ input.pack-num{
 .gantt-group-dot.done{background:var(--status-done);}
 .gantt-group-count{margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600;}
 .gantt-group-label{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.gantt-group-rename{width:11px; height:11px; flex-shrink:0; opacity:.45; cursor:pointer;}
+.gantt-group-rename svg{width:100%; height:100%; display:block;}
+.gantt-group-rename:hover{opacity:.9;}
+.gantt-group-rename-input{
+  flex:1; min-width:60px; max-width:220px; font-size:11.5px; font-weight:700; text-transform:none;
+  letter-spacing:normal; font-family:'Inter',sans-serif; border:1px solid var(--forest); border-radius:5px;
+  padding:1px 6px; background:var(--card); color:var(--ink);
+}
+.gantt-group-row.gantt-group-drop-target{outline:2px dashed var(--forest); outline-offset:-2px; background:var(--paper);}
+.gantt-row-drag-grip{width:11px; height:15px; flex-shrink:0; opacity:.35; cursor:grab; touch-action:none; margin-top:2px;}
+.gantt-row-drag-grip svg{width:100%; height:100%; display:block;}
+.gantt-row-drag-grip:hover{opacity:.8;}
 .gantt-view-switch{display:flex; gap:6px;}
 .gantt-toolbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px;}
 .gantt-toolbar-field{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft); font-weight:600;}
@@ -6663,6 +6675,82 @@ function toggleTaskGroupCollapsed(project, key){
   if(!project.data.collapsedGroups) project.data.collapsedGroups = {};
   project.data.collapsedGroups[key] = !project.data.collapsedGroups[key];
 }
+// Sostituisce l'etichetta del gruppo con un campo di testo: al termine (Invio o click altrove)
+// rinomina la categoria su TUTTE le attività che la usano (un gruppo "Categoria" è solo
+// l'insieme dei task con lo stesso valore in t.category, non un oggetto a parte).
+function startCategoryGroupRename(project, key, labelSpan){
+  const oldName = key.slice(4); // toglie il prefisso "cat:"
+  const input = el("input",{type:"text", class:"gantt-group-rename-input", value:oldName});
+  labelSpan.replaceWith(input);
+  input.addEventListener("click", e=>e.stopPropagation());
+  input.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"){ e.preventDefault(); input.blur(); }
+    else if(e.key==="Escape"){ input.value = oldName; input.blur(); }
+  });
+  input.addEventListener("blur", ()=>{
+    const newName = input.value.trim();
+    if(newName !== oldName){
+      (project.data.tasks||[]).forEach(t=>{ if((t.category||"").trim()===oldName) t.category = newName; });
+      ganttSave(project); render("progetti");
+    } else {
+      input.replaceWith(labelSpan);
+    }
+  });
+  input.focus(); input.select();
+}
+// Riga di intestazione di un gruppo (Stato o Categoria), condivisa da Tabella e Timeline.
+// In modalità Categoria aggiunge una matita per rinominare (vedi sopra) e marca la riga come
+// possibile bersaglio del drag & drop delle attività (vedi attachCategoryDragHandle).
+function buildTaskGroupHeaderRow(project, key, label, count, groupMode, heightPx, groupHeaderEls){
+  const collapsed = isTaskGroupCollapsed(project, key);
+  const groupRow = el("div",{class:"gantt-group-row", style:`height:${heightPx}px;`});
+  groupRow.dataset.groupKey = key;
+  groupRow.appendChild(el("span",{class:"gantt-group-chevron"+(collapsed?" collapsed":"")}, "▼"));
+  if(groupMode==="status") groupRow.appendChild(el("span",{class:"gantt-group-dot "+key}));
+  const labelSpan = el("span",{class:"gantt-group-label"}, label);
+  groupRow.appendChild(labelSpan);
+  if(groupMode==="category"){
+    const renameBtn = el("span",{class:"gantt-group-rename", html:ICON_EDIT, title:"Rinomina categoria"});
+    renameBtn.addEventListener("click",(e)=>{ e.stopPropagation(); startCategoryGroupRename(project, key, labelSpan); });
+    groupRow.appendChild(renameBtn);
+  }
+  groupRow.appendChild(el("span",{class:"gantt-group-count"}, String(count)));
+  groupRow.addEventListener("click", ()=>{
+    toggleTaskGroupCollapsed(project, key);
+    ganttSaveQuiet(project); render("progetti");
+  });
+  if(groupHeaderEls) groupHeaderEls[key] = groupRow;
+  return groupRow;
+}
+// Trascinamento di un'attività da una categoria a un'altra (via grip dedicato, solo quando si
+// raggruppa per Categoria). A differenza di attachRowDrag non riordina un array: cambia
+// t.category al valore del gruppo su cui si rilascia, individuato tramite data-group-key
+// sulle intestazioni di gruppo E su ogni riga attività (così si può rilasciare anche sopra
+// un'altra attività, non solo esattamente sull'intestazione).
+function attachCategoryDragHandle(handle, row, task, project, groupHeaderEls, onMoved){
+  function clearHighlight(){
+    Object.values(groupHeaderEls).forEach(h=> h.classList.remove("gantt-group-drop-target"));
+  }
+  function resolveTargetKey(e){
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const el2 = under && under.closest("[data-group-key]");
+    const key = el2 && el2.dataset.groupKey;
+    return (key && key.indexOf("cat:")===0) ? key : null;
+  }
+  bindPointerDragSource(handle, row, (e)=>{
+    clearHighlight();
+    const key = resolveTargetKey(e);
+    if(key && groupHeaderEls[key]) groupHeaderEls[key].classList.add("gantt-group-drop-target");
+  }, (e)=>{
+    clearHighlight();
+    const key = resolveTargetKey(e);
+    if(!key) return;
+    const newCategory = key.slice(4);
+    if(newCategory === (task.category||"").trim()) return;
+    task.category = newCategory;
+    onMoved();
+  });
+}
 // Aggiunge i controlli "Raggruppa per" / "Ordina per" dentro un contenitore .gantt-toolbar
 // già esistente — così la Timeline può metterli nella stessa riga di filtro/zoom, mentre la
 // Tabella li mostra da soli in una riga propria (vedi buildGroupSortToolbar sotto).
@@ -7018,24 +7106,17 @@ function renderProjectTable(detail, project, tasks){
     headerRow.appendChild(el("div",{}, l)));
   table.appendChild(headerRow);
 
+  const groupHeaderEls = {};
   groups.forEach(([key,label,groupTasksRaw])=>{
     const groupTasks = sortTasksBy(groupTasksRaw, sortMode);
     const collapsed = isTaskGroupCollapsed(project, key);
 
-    const groupRow = el("div",{class:"gantt-group-row", style:"height:32px;"});
-    groupRow.appendChild(el("span",{class:"gantt-group-chevron"+(collapsed?" collapsed":"")}, "▼"));
-    if(groupMode==="status") groupRow.appendChild(el("span",{class:"gantt-group-dot "+key}));
-    groupRow.appendChild(el("span",{class:"gantt-group-label"}, label));
-    groupRow.appendChild(el("span",{class:"gantt-group-count"}, String(groupTasks.length)));
-    groupRow.addEventListener("click", ()=>{
-      toggleTaskGroupCollapsed(project, key);
-      ganttSaveQuiet(project); render("progetti");
-    });
-    table.appendChild(groupRow);
+    table.appendChild(buildTaskGroupHeaderRow(project, key, label, groupTasks.length, groupMode, 32, groupHeaderEls));
     if(collapsed) return;
 
     groupTasks.forEach(t=>{
       const row = el("div",{class:"project-table-row"});
+      row.dataset.groupKey = key;
 
       const statusSel = el("select",{class:"gantt-pill-select"});
       [["todo","Da fare"],["doing","In corso"],["done","Fatto"]].forEach(([v,l])=>
@@ -7053,6 +7134,11 @@ function renderProjectTable(detail, project, tasks){
       row.appendChild(statusSel);
 
       const nameCell = el("div",{class:"project-table-name-cell"});
+      if(groupMode==="category"){
+        const dragGrip = el("span",{class:"gantt-row-drag-grip", html:ICON_GRIP, title:"Trascina in un'altra categoria"});
+        attachCategoryDragHandle(dragGrip, row, t, project, groupHeaderEls, ()=>{ ganttSave(project); render("progetti"); });
+        nameCell.appendChild(dragGrip);
+      }
       nameCell.appendChild(keyTaskToggle(t, ()=>{ ganttSaveQuiet(project); render("progetti"); }));
       const nameInp = el("textarea",{rows:"1", class:"gantt-name-input project-table-name-input"+(t.done?" done":"")});
       nameInp.value = t.name;
@@ -7266,21 +7352,12 @@ function renderProjectDetail(detail, project){
   scrollArea.appendChild(chartInner);
 
   let yOffset = 0;
+  const groupHeaderEls = {};
   groups.forEach(([key,label,groupTasksRaw])=>{
     const groupTasks = sortTasksBy(groupTasksRaw, sortMode);
     const collapsed = isTaskGroupCollapsed(project, key);
 
-    // intestazione di sezione (comprimibile)
-    const groupRow = el("div",{class:"gantt-group-row", style:`height:${GANTT_GROUP_H}px;`});
-    groupRow.appendChild(el("span",{class:"gantt-group-chevron"+(collapsed?" collapsed":"")}, "▼"));
-    if(groupMode==="status") groupRow.appendChild(el("span",{class:"gantt-group-dot "+key}));
-    groupRow.appendChild(el("span",{class:"gantt-group-label"}, label));
-    groupRow.appendChild(el("span",{class:"gantt-group-count"}, String(groupTasks.length)));
-    groupRow.addEventListener("click", ()=>{
-      toggleTaskGroupCollapsed(project, key);
-      ganttSaveQuiet(project); render("progetti");
-    });
-    labelsCol.appendChild(groupRow);
+    labelsCol.appendChild(buildTaskGroupHeaderRow(project, key, label, groupTasks.length, groupMode, GANTT_GROUP_H, groupHeaderEls));
     yOffset += GANTT_GROUP_H;
     if(collapsed) return;
 
@@ -7288,8 +7365,14 @@ function renderProjectDetail(detail, project){
       const rowTop = yOffset;
       // riga etichetta
       const labelRow = el("div",{class:"gantt-label-row", style:`height:${GANTT_ROW_H}px;`});
+      labelRow.dataset.groupKey = key;
 
       const line1 = el("div",{class:"gantt-row-line1"});
+      if(groupMode==="category"){
+        const dragGrip = el("span",{class:"gantt-row-drag-grip", html:ICON_GRIP, title:"Trascina in un'altra categoria"});
+        attachCategoryDragHandle(dragGrip, labelRow, t, project, groupHeaderEls, ()=>{ ganttSave(project); render("progetti"); });
+        line1.appendChild(dragGrip);
+      }
       const statusSel = el("select",{class:"gantt-pill-select gantt-row-status-select"});
       [["todo","Da fare"],["doing","In corso"],["done","Fatto"]].forEach(([v,l])=>
         statusSel.appendChild(el("option",{value:v}, l)));
@@ -7320,7 +7403,7 @@ function renderProjectDetail(detail, project){
       line1.appendChild(moreBtn);
       labelRow.appendChild(line1);
       labelRow.addEventListener("click", (e)=>{
-        if(e.target===nameInp || e.target.closest(".gantt-row-more-btn") || e.target.closest(".gantt-key-toggle")) return;
+        if(e.target===nameInp || e.target.closest(".gantt-row-more-btn") || e.target.closest(".gantt-key-toggle") || e.target.closest(".gantt-row-drag-grip")) return;
         openProjectTaskModal(project, t, ganttSave);
       });
 
