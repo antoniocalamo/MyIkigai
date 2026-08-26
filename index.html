@@ -21,6 +21,8 @@
   --mustard:#E6C79C;
   --slate:#0D3B3E;
   --plum:#D98E96;
+  --amber:#B8843A;
+  --indigo:#4A5B8C;
   --line:#DDEBEA;
   --card:#FFFFFF;
   --tab-text:#FFF6E6;
@@ -44,6 +46,8 @@
   --mustard:#C9A46A;
   --slate:#2C2C2C;
   --plum:#B3261E;
+  --amber:#8A6D3B;
+  --indigo:#4A5568;
   --line:#D9D9D9;
   --card:#FFFFFF;
   --tab-text:#F7F7F7;
@@ -63,6 +67,8 @@
   --mustard:#C89D4A;
   --slate:#0E2238;
   --plum:#8C6E3A;
+  --amber:#7A5230;
+  --indigo:#3F3563;
   --line:#D1B98A;
   --card:#FFFDF5;
   --tab-text:#F4EBD3;
@@ -82,6 +88,8 @@
   --mustard:#A8763A;
   --slate:#707070;
   --plum:#8B4B6B;
+  --amber:#9C7A3D;
+  --indigo:#6B5FA8;
   --line:#3F3F3F;
   --card:#252525;
   --tab-text:#EDEDED;
@@ -228,6 +236,8 @@ h1,h2,h3,.display{font-family:'Fraunces',serif;}
 .tab[data-c="progetti"]{background:var(--slate);}
 .tab[data-c="finanze"]{background:var(--slate);}
 .tab[data-c="condivisi"]{background:var(--plum);}
+.tab[data-c="documenti"]{background:var(--amber);}
+.tab[data-c="idee"]{background:var(--indigo);}
 .tab.active{
   transform:translateX(14px);
   box-shadow: var(--shadow);
@@ -1006,6 +1016,53 @@ input.pack-num{
 .gantt-row-drag-grip{width:11px; height:15px; flex-shrink:0; opacity:.35; cursor:grab; touch-action:none; margin-top:2px;}
 .gantt-row-drag-grip svg{width:100%; height:100%; display:block;}
 .gantt-row-drag-grip:hover{opacity:.8;}
+
+/* ---- Idee: post-it indipendenti ---- */
+.idea-grid{display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start;}
+.idea-card{
+  width:240px; background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:10px 12px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px;
+}
+.idea-card-head{display:flex; align-items:center; justify-content:space-between;}
+.idea-card-grip{width:14px; height:16px; flex-shrink:0; opacity:.35; cursor:grab; touch-action:none; color:var(--ink-soft);}
+.idea-card-grip svg{width:100%; height:100%; display:block;}
+.idea-card-grip:hover{opacity:.8;}
+.idea-card-del{border:none; background:transparent; color:var(--ink-soft); font-size:19px; line-height:1; cursor:pointer; padding:0 2px;}
+.idea-card-del:hover{color:var(--urgent-text, var(--rust));}
+.idea-card-text{
+  border:none; background:transparent; resize:none; font-family:'Inter',sans-serif; font-size:13.5px;
+  color:var(--ink); line-height:1.4; min-height:60px; padding:0; width:100%; box-sizing:border-box;
+}
+.idea-card-text:focus{outline:none;}
+.idea-card-date{font-size:10px; color:var(--ink-soft); text-align:right;}
+
+/* ---- Documenti ---- */
+.doc-head-row{display:flex; align-items:center; gap:12px; margin-bottom:12px;}
+.doc-dropzone{
+  border:2px dashed var(--line); border-radius:10px; padding:16px; text-align:center;
+  font-size:12.5px; color:var(--ink-soft); margin-bottom:16px; transition:border-color .15s, background .15s;
+}
+.doc-dropzone.drag-over{border-color:var(--forest); background:var(--paper-2); color:var(--ink);}
+.doc-grid{display:flex; flex-wrap:wrap; gap:14px;}
+.doc-card{
+  width:150px; background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:8px; box-shadow:var(--shadow); position:relative; display:flex; flex-direction:column; gap:5px;
+}
+.doc-card-del{
+  position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%;
+  border:none; background:rgba(0,0,0,0.45); color:#fff; font-size:14px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; z-index:1;
+}
+.doc-card-del:hover{background:var(--urgent-text, var(--rust));}
+.doc-card-thumb{width:100%; aspect-ratio:1; border-radius:8px; overflow:hidden; background:var(--paper-2); cursor:pointer;}
+.doc-card-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+.doc-card-icon{
+  width:100%; aspect-ratio:1; border-radius:8px; background:var(--paper-2); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:36px;
+}
+.doc-card-name{font-size:11.5px; color:var(--ink); cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.doc-card-name:hover{text-decoration:underline;}
+.doc-card-meta{font-size:10px; color:var(--ink-soft);}
 .gantt-view-switch{display:flex; gap:6px;}
 .gantt-toolbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px;}
 .gantt-toolbar-field{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft); font-weight:600;}
@@ -1669,6 +1726,8 @@ input.cashflow-item-occ-input{
 .tab.dragging{opacity:.5;}
 
 @media (max-width: 880px){
+  .idea-card{width:100%;}
+  .doc-card{width:calc(50% - 7px);}
   .invest-row{
     grid-template-columns:1fr 1fr;
     grid-template-areas:
@@ -1923,6 +1982,14 @@ input.cashflow-item-occ-input{
       <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h6M7 13h10M7 17h4"/></svg></span>
       <span class="tab-label"><span class="tab-label-main">Progetti</span></span>
     </button>
+    <button class="tab custom-tab" data-c="documenti" data-tab="documenti" data-builtin="documenti">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v10A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5v-12Z"/></svg></span>
+      <span class="tab-label"><span class="tab-label-main">Documenti</span></span>
+    </button>
+    <button class="tab custom-tab" data-c="idee" data-tab="idee" data-builtin="idee">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-6 6c0 2.5 1.5 4 2.5 5s1.5 1.5 1.5 3h4c0-1.5.5-2 1.5-3s2.5-2.5 2.5-5a6 6 0 0 0-6-6Z"/></svg></span>
+      <span class="tab-label"><span class="tab-label-main">Idee</span></span>
+    </button>
     <button class="tab custom-tab" data-c="condivisi" data-tab="condivisi" data-builtin="condivisi">
       <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20c0-3 2.5-5 5-5s5 2 5 5M11 20c0-3 2.5-5 6-5" stroke-linecap="round"/></svg></span>
       <span class="tab-label"><span class="tab-label-main">Condivisi</span></span>
@@ -2044,6 +2111,7 @@ const DEFAULTS = {
 };
 const SHARED_BOARD_TEMPLATE = () => [];
 const PROJECT_TEMPLATE = () => ({ tasks: [] });
+const DOC_FOLDER_TEMPLATE = () => ({ files: [] });
 
 /* ---------------- icons ---------------- */
 const ICON_EMPTY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 19V7a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 5v5h5"/></svg>';
@@ -2515,7 +2583,7 @@ window.addEventListener("beforeunload", (e)=>{
 });
 
 let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, ortoWeatherLocation:null, mobilePinned:null, dojoReminders:null };
-let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null;
+let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null, activeDocFolder = null;
 let activeMaintenanceItem = null;
 let goodThingPick = null;
 let financeChartWindow = "12";
@@ -2968,6 +3036,7 @@ async function loadAll(){
     dashboardRaw, ortoRaw, weatherLocationRaw, ortoWeatherLocationRaw,
     tripsRaw, bbqsRaw, maintenanceItemsRaw,
     financeRaw, sharedBoardsRaw, projectsRaw, projectsPrivateRaw,
+    docFoldersRaw, docFoldersPrivateRaw, ideasRaw,
     customTabsRaw, customTabsPrivateRaw,
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
@@ -2984,6 +3053,9 @@ async function loadAll(){
     store.get("sharedBoards", DEFAULTS.sharedBoards),
     store.get("projects", DEFAULTS.projects),
     store.get(privKey("projects"), []),
+    store.get("docFolders", []),
+    store.get(privKey("docFolders"), []),
+    store.get("ideas", []),
     store.get("customTabs", []),
     store.get(privKey("customTabs"), []),
     store.get(privKey("hiddenBuiltins"), []),
@@ -3160,6 +3232,12 @@ async function loadAll(){
     if(t.category==null) t.category = "";
     if(t.keyTask==null) t.keyTask = false;
   }));
+  state.docFolders = docFoldersRaw;
+  state.docFoldersPrivate = docFoldersPrivateRaw;
+  state.docFoldersPrivate.forEach(f=>{ f.private = true; });
+  state.docFolders = state.docFolders.concat(state.docFoldersPrivate);
+  state.docFolders.forEach(f=>{ if(!f.data) f.data = {files:[]}; if(!f.data.files) f.data.files = []; });
+  state.ideas = ideasRaw;
   state.customTabs = customTabsRaw;
   state.customTabs.forEach(t=>migrateColorField(t, "color"));
   state.customTabsPrivate = customTabsPrivateRaw;
@@ -5997,7 +6075,7 @@ function renderCollection(main, opts){
           state[key].push(item);
           saveList();
           setActive(item.id); render(opts.tab);
-        });
+        }, { title: opts.newModalTitle, requiredMsg: opts.newModalRequiredMsg });
         return;
       }
       const name = await promptModal(namePrompt);
@@ -6132,9 +6210,9 @@ function openNewSubItemModal(namePromptLabel, onCreate){
 }
 // Modale creazione progetto con scelta di visibilità (Condiviso / Solo per me), stessa logica
 // già usata per le schede custom (openNewTabModal), riusata qui per singoli progetti.
-function openNewProjectModal(namePromptLabel, onCreate){
+function openNewProjectModal(namePromptLabel, onCreate, opts={}){
   openModal((modal, close)=>{
-    modal.appendChild(el("h3",{},"Nuovo progetto"));
+    modal.appendChild(el("h3",{}, opts.title || "Nuovo progetto"));
     modal.appendChild(el("div",{class:"field-label"},"Nome"));
     const nameInput = el("input",{type:"text", placeholder:(namePromptLabel||"Nome del progetto").replace(/:$/,"")});
     modal.appendChild(nameInput);
@@ -6154,7 +6232,7 @@ function openNewProjectModal(namePromptLabel, onCreate){
     const createBtn = el("button",{class:"btn primary"},"Crea");
     createBtn.addEventListener("click", async ()=>{
       if(!nameInput.value.trim()){
-        await alertModal("Il nome del progetto è obbligatorio.");
+        await alertModal(opts.requiredMsg || "Il nome del progetto è obbligatorio.");
         nameInput.focus();
         return;
       }
@@ -6574,6 +6652,14 @@ function saveProjects(quiet){
   const mine = state.projects.filter(p=>p.private);
   if(quiet){ store.setQuiet("projects", shared); store.setQuiet(privKey("projects"), mine); }
   else { store.set("projects", shared); store.set(privKey("projects"), mine); }
+}
+// Stessa logica di saveProjects: solo i metadati dei file (nome, percorso, dimensione...) stanno
+// qui — i byte veri restano nello Storage di Supabase (bucket "documenti").
+function saveDocFolders(quiet){
+  const shared = state.docFolders.filter(f=>!f.private);
+  const mine = state.docFolders.filter(f=>f.private);
+  if(quiet){ store.setQuiet("docFolders", shared); store.setQuiet(privKey("docFolders"), mine); }
+  else { store.set("docFolders", shared); store.set(privKey("docFolders"), mine); }
 }
 function ganttSave(project){ saveProjects(false); }
 function ganttSaveQuiet(project){ saveProjects(true); }
@@ -7524,6 +7610,177 @@ function renderProjectDetail(detail, project){
 function renderBbqDetail(detail, bbq){
   const save = (quiet)=>{ (quiet?store.setQuiet:store.set)("bbqs", state.bbqs); render("grigliate"); };
   renderCategorizedChecklist(detail, bbq, save, "g"+bbq.id, "grigliate");
+}
+
+/* ---------------- IDEE ---------------- */
+// Lacheca di idee: a differenza delle altre schede non è una collezione con elenco+dettaglio,
+// ma tante card indipendenti mostrate tutte insieme (come dei post-it), pensate per essere
+// veloci da scrivere e da riordinare. Condivise tra i due account, una sola chiave "ideas".
+function saveIdeas(quiet){
+  (quiet ? store.setQuiet : store.set)("ideas", state.ideas);
+}
+function renderIdee(main){
+  main.appendChild(el("div",{class:"section-head"},[
+    builtinTabHeader("idee","Idee"),
+    el("span",{class:"tag"}, state.ideas.length+(state.ideas.length===1?" idea":" idee"))
+  ]));
+  const addBtn = el("button",{class:"btn primary", style:"margin-bottom:14px;"}, "+ Nuova idea");
+  addBtn.addEventListener("click", ()=>{
+    const idea = { id:"idea"+Date.now(), text:"", created:new Date().toLocaleDateString("it-IT") };
+    state.ideas.unshift(idea);
+    saveIdeas(false);
+    render("idee");
+    const ta = document.querySelector('.idea-card[data-idea-id="'+idea.id+'"] .idea-card-text');
+    if(ta) ta.focus();
+  });
+  main.appendChild(addBtn);
+
+  if(!state.ideas.length){
+    main.appendChild(emptyState("Aggiungi la prima idea: un pensiero, uno spunto, qualcosa da non dimenticare.", ICON_STAR_KPI));
+    return;
+  }
+
+  const grid = el("div",{class:"idea-grid"});
+  state.ideas.forEach((idea,i)=>{
+    const card = el("div",{class:"idea-card"});
+    card.dataset.ideaId = idea.id;
+    const head = el("div",{class:"idea-card-head"});
+    const grip = el("span",{class:"idea-card-grip", html:ICON_GRIP, title:"Trascina per riordinare"});
+    head.appendChild(grip);
+    const delBtn = el("button",{type:"button", class:"idea-card-del", title:"Elimina idea"}, "×");
+    delBtn.addEventListener("click", ()=>{
+      state.ideas = state.ideas.filter(x=>x.id!==idea.id);
+      saveIdeas(false); render("idee");
+    });
+    head.appendChild(delBtn);
+    card.appendChild(head);
+    const ta = el("textarea",{class:"idea-card-text", rows:"1", placeholder:"Scrivi qui la tua idea…"});
+    ta.value = idea.text;
+    ta.addEventListener("input", ()=>autoResize(ta));
+    ta.addEventListener("change", ()=>{ idea.text = ta.value; saveIdeas(false); });
+    card.appendChild(ta);
+    card.appendChild(el("div",{class:"idea-card-date"}, idea.created));
+    attachRowDrag(grip, card, i, state.ideas, ()=>{ saveIdeas(true); render("idee"); });
+    grid.appendChild(card);
+  });
+  main.appendChild(grid);
+}
+
+/* ---------------- DOCUMENTI ---------------- */
+// A differenza di tutte le altre schede, qui i "contenuti" veri (i byte dei file) non stanno
+// nel solito archivio di testo condiviso: sarebbe troppo pesante da scaricare/salvare ogni
+// volta (anche solo aprendo l'app). Stanno invece nello Storage di Supabase, un ripostiglio
+// a parte pensato apposta per i file — qui teniamo solo "l'etichetta" di ognuno (nome,
+// percorso, dimensione). Richiede che il bucket "documenti" sia stato creato una volta sola
+// dal pannello Supabase (vedi istruzioni fornite all'utente).
+const DOCS_BUCKET = "documenti";
+function docFolderBasePath(folder){
+  return folder.private ? ("private/"+currentUser.id+"/"+folder.id) : ("shared/"+folder.id);
+}
+function fmtFileSize(bytes){
+  if(bytes==null) return "";
+  if(bytes<1024) return bytes+" B";
+  if(bytes<1024*1024) return Math.round(bytes/1024)+" KB";
+  return (bytes/1024/1024).toFixed(1)+" MB";
+}
+function getDocSignedUrl(path, cb){
+  sb.storage.from(DOCS_BUCKET).createSignedUrl(path, 3600).then(({data,error})=>{
+    if(error){ console.error("signed url error", error); return; }
+    if(data) cb(data.signedUrl);
+  });
+}
+async function uploadDocFiles(folder, fileList, onDone, onError){
+  const files = Array.from(fileList);
+  if(!files.length) return;
+  const results = await Promise.all(files.map(async file=>{
+    const fileId = "f"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
+    const safeName = file.name.replace(/[^\w.\-]+/g,"_");
+    const path = docFolderBasePath(folder)+"/"+fileId+"-"+safeName;
+    const { error } = await sb.storage.from(DOCS_BUCKET).upload(path, file);
+    if(error){ console.error("upload error", error); return { error, name:file.name }; }
+    return { id:fileId, name:file.name, path, size:file.size, mimeType:file.type||"", uploadedAt:new Date().toISOString() };
+  }));
+  const ok = results.filter(r=>!r.error);
+  const failed = results.filter(r=>r.error);
+  ok.forEach(rec=> folder.data.files.push(rec));
+  if(ok.length) saveDocFolders(false);
+  onDone();
+  if(failed.length) onError(failed);
+}
+function deleteDocFile(folder, file, onDone){
+  sb.storage.from(DOCS_BUCKET).remove([file.path]).then(()=>{
+    folder.data.files = folder.data.files.filter(f=>f.id!==file.id);
+    saveDocFolders(false);
+    onDone();
+  });
+}
+function renderDocFolderDetail(detail, folder){
+  const head = el("div",{class:"doc-head-row"});
+  const uploadBtn = el("button",{class:"btn primary small"}, "+ Carica file");
+  const fileInput = el("input",{type:"file", multiple:true, style:"display:none;"});
+  function startUpload(fileList){
+    uploadBtn.disabled = true; uploadBtn.textContent = "Caricamento…";
+    uploadDocFiles(folder, fileList, ()=>{
+      render("documenti");
+    }, async (failed)=>{
+      await alertModal("Non sono riuscito a caricare "+failed.length+" file ("+failed.map(f=>f.name).join(", ")+"). "
+        +"Controlla di aver creato il bucket \"documenti\" su Supabase Storage con le policy indicate.");
+      uploadBtn.disabled = false; uploadBtn.textContent = "+ Carica file";
+    });
+  }
+  uploadBtn.addEventListener("click", ()=> fileInput.click());
+  fileInput.addEventListener("change", ()=>{ if(fileInput.files.length) startUpload(fileInput.files); fileInput.value = ""; });
+  head.appendChild(uploadBtn); head.appendChild(fileInput);
+  detail.appendChild(head);
+
+  const dropZone = el("div",{class:"doc-dropzone"});
+  const dropText = el("span",{class:"doc-dropzone-text"}, "Trascina qui foto o documenti, oppure usa \"+ Carica file\"");
+  dropZone.appendChild(dropText);
+  ["dragenter","dragover"].forEach(evt=> dropZone.addEventListener(evt,(e)=>{ e.preventDefault(); dropZone.classList.add("drag-over"); }));
+  dropZone.addEventListener("dragleave", ()=> dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop",(e)=>{
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if(files && files.length){ dropText.textContent = "Caricamento…"; startUpload(files); }
+  });
+  detail.appendChild(dropZone);
+
+  if(!folder.data.files.length){
+    detail.appendChild(emptyState("Carica la prima foto o documento in questa cartella.", ICON_SUITCASE));
+    return;
+  }
+
+  const grid = el("div",{class:"doc-grid"});
+  folder.data.files.slice().reverse().forEach(file=>{
+    const isImage = (file.mimeType||"").indexOf("image/")===0;
+    const card = el("div",{class:"doc-card"});
+    const delBtn = el("button",{type:"button", class:"doc-card-del", title:"Elimina file"}, "×");
+    delBtn.addEventListener("click", async ()=>{
+      if(!(await confirmModal('Eliminare "'+file.name+'"? Non si può annullare.', {danger:true, okLabel:"Elimina"}))) return;
+      deleteDocFile(folder, file, ()=> render("documenti"));
+    });
+    card.appendChild(delBtn);
+    const openFile = ()=> getDocSignedUrl(file.path, (url)=> window.open(url, "_blank"));
+    if(isImage){
+      const thumb = el("div",{class:"doc-card-thumb"});
+      const img = el("img",{alt:file.name});
+      thumb.appendChild(img);
+      thumb.addEventListener("click", openFile);
+      card.appendChild(thumb);
+      getDocSignedUrl(file.path, (url)=>{ img.src = url; });
+    } else {
+      const iconWrap = el("div",{class:"doc-card-icon"}, "📄");
+      iconWrap.addEventListener("click", openFile);
+      card.appendChild(iconWrap);
+    }
+    const nameEl = el("div",{class:"doc-card-name", title:file.name}, file.name);
+    nameEl.addEventListener("click", openFile);
+    card.appendChild(nameEl);
+    card.appendChild(el("div",{class:"doc-card-meta"}, fmtFileSize(file.size)));
+    grid.appendChild(card);
+  });
+  detail.appendChild(grid);
 }
 
 /* ---------------- MANUTENZIONE (ex Gomme) ---------------- */
@@ -9667,7 +9924,8 @@ function builtinTabHeader(key, fallbackLabel){
   ]);
 }
 const BUILTIN_TABS = {
-  orto: "Orto", viaggio: "Viaggi", grigliate: "Eventi", gomme: "Manuten\u00ADzione", progetti: "Progetti", condivisi: "Condivisi"
+  orto: "Orto", viaggio: "Viaggi", grigliate: "Eventi", gomme: "Manuten\u00ADzione", progetti: "Progetti",
+  documenti: "Documenti", idee: "Idee", condivisi: "Condivisi"
 };
 function applyHiddenBuiltins(){
   Object.keys(BUILTIN_TABS).forEach(key=>{
@@ -10082,6 +10340,16 @@ function render(tab){
     delBtnLabel:"Elimina progetto", emptyStateText:"Seleziona o crea un progetto per iniziare.", emptyStateIcon:ICON_CHECK
   });
   else if(tab==="finanze") renderFinanze(main);
+  else if(tab==="documenti") renderCollection(main, {
+    key:"docFolders", tab:"documenti", title:"Documenti", titleEl: builtinTabHeader("documenti","Documenti"), active:activeDocFolder,
+    setActive:(id)=>activeDocFolder=id, template:DOC_FOLDER_TEMPLATE, renderDetail:renderDocFolderDetail,
+    itemsLabel:"cartelle", newBtnLabel:"+ Nuova cartella", fixedTemplate:true, allowPrivate:true,
+    customSave: ()=>saveDocFolders(false),
+    namePrompt:"Nome della cartella:", renameTitle:"Rinomina cartella", renamePrompt:"Rinomina cartella:",
+    delBtnLabel:"Elimina cartella", emptyStateText:"Seleziona o crea una cartella per iniziare.", emptyStateIcon:ICON_SUITCASE,
+    newModalTitle:"Nuova cartella", newModalRequiredMsg:"Il nome della cartella è obbligatorio."
+  });
+  else if(tab==="idee") renderIdee(main);
   else if(tab==="condivisi") renderCollection(main, {
     key:"sharedBoards", tab:"condivisi", title:"Board condivise", titleEl: builtinTabHeader("condivisi","Condivisi"), active:activeSharedBoard,
     setActive:(id)=>activeSharedBoard=id, template:SHARED_BOARD_TEMPLATE, renderDetail:renderSharedBoardDetail
