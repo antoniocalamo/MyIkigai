@@ -21,8 +21,6 @@
   --mustard:#E6C79C;
   --slate:#0D3B3E;
   --plum:#D98E96;
-  --amber:#B8843A;
-  --indigo:#4A5B8C;
   --line:#DDEBEA;
   --card:#FFFFFF;
   --tab-text:#FFF6E6;
@@ -46,8 +44,6 @@
   --mustard:#C9A46A;
   --slate:#2C2C2C;
   --plum:#B3261E;
-  --amber:#8A6D3B;
-  --indigo:#4A5568;
   --line:#D9D9D9;
   --card:#FFFFFF;
   --tab-text:#F7F7F7;
@@ -67,8 +63,6 @@
   --mustard:#C89D4A;
   --slate:#0E2238;
   --plum:#8C6E3A;
-  --amber:#7A5230;
-  --indigo:#3F3563;
   --line:#D1B98A;
   --card:#FFFDF5;
   --tab-text:#F4EBD3;
@@ -88,8 +82,6 @@
   --mustard:#A8763A;
   --slate:#707070;
   --plum:#8B4B6B;
-  --amber:#9C7A3D;
-  --indigo:#6B5FA8;
   --line:#3F3F3F;
   --card:#252525;
   --tab-text:#EDEDED;
@@ -236,8 +228,6 @@ h1,h2,h3,.display{font-family:'Fraunces',serif;}
 .tab[data-c="progetti"]{background:var(--slate);}
 .tab[data-c="finanze"]{background:var(--slate);}
 .tab[data-c="condivisi"]{background:var(--plum);}
-.tab[data-c="documenti"]{background:var(--amber);}
-.tab[data-c="idee"]{background:var(--indigo);}
 .tab.active{
   transform:translateX(14px);
   box-shadow: var(--shadow);
@@ -1063,6 +1053,24 @@ input.pack-num{
 .doc-card-name{font-size:11.5px; color:var(--ink); cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .doc-card-name:hover{text-decoration:underline;}
 .doc-card-meta{font-size:10px; color:var(--ink-soft);}
+.proj-docs-wrap{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
+.proj-docs-folder-list{width:200px; flex-shrink:0; display:flex; flex-direction:column; gap:6px;}
+.proj-docs-folder-item{
+  display:flex; align-items:center; gap:6px; padding:7px 9px; border-radius:8px; cursor:pointer;
+  border:1px solid var(--line); background:var(--card); font-size:12.5px;
+}
+.proj-docs-folder-item.active{background:var(--forest); color:#fff; border-color:var(--forest);}
+.proj-docs-folder-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;}
+.proj-docs-folder-count{font-family:'IBM Plex Mono',monospace; font-size:10.5px; opacity:.75; flex-shrink:0;}
+.proj-docs-folder-rename{width:12px; height:12px; flex-shrink:0; opacity:.45; cursor:pointer;}
+.proj-docs-folder-rename svg{width:100%; height:100%; display:block;}
+.proj-docs-folder-rename:hover{opacity:.9;}
+.proj-docs-folder-del{
+  border:none; background:transparent; color:inherit; opacity:.45; font-size:16px; line-height:1;
+  cursor:pointer; padding:0 1px; flex-shrink:0;
+}
+.proj-docs-folder-del:hover{opacity:1; color:var(--urgent-text, var(--rust));}
+.proj-docs-detail{flex:1; min-width:0;}
 .gantt-view-switch{display:flex; gap:6px;}
 .gantt-toolbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px;}
 .gantt-toolbar-field{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft); font-weight:600;}
@@ -1982,14 +1990,6 @@ input.cashflow-item-occ-input{
       <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h6M7 13h10M7 17h4"/></svg></span>
       <span class="tab-label"><span class="tab-label-main">Progetti</span></span>
     </button>
-    <button class="tab custom-tab" data-c="documenti" data-tab="documenti" data-builtin="documenti">
-      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v10A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5v-12Z"/></svg></span>
-      <span class="tab-label"><span class="tab-label-main">Documenti</span></span>
-    </button>
-    <button class="tab custom-tab" data-c="idee" data-tab="idee" data-builtin="idee">
-      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-6 6c0 2.5 1.5 4 2.5 5s1.5 1.5 1.5 3h4c0-1.5.5-2 1.5-3s2.5-2.5 2.5-5a6 6 0 0 0-6-6Z"/></svg></span>
-      <span class="tab-label"><span class="tab-label-main">Idee</span></span>
-    </button>
     <button class="tab custom-tab" data-c="condivisi" data-tab="condivisi" data-builtin="condivisi">
       <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20c0-3 2.5-5 5-5s5 2 5 5M11 20c0-3 2.5-5 6-5" stroke-linecap="round"/></svg></span>
       <span class="tab-label"><span class="tab-label-main">Condivisi</span></span>
@@ -2111,7 +2111,6 @@ const DEFAULTS = {
 };
 const SHARED_BOARD_TEMPLATE = () => [];
 const PROJECT_TEMPLATE = () => ({ tasks: [] });
-const DOC_FOLDER_TEMPLATE = () => ({ files: [] });
 
 /* ---------------- icons ---------------- */
 const ICON_EMPTY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 19V7a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 5v5h5"/></svg>';
@@ -2583,7 +2582,7 @@ window.addEventListener("beforeunload", (e)=>{
 });
 
 let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, ortoWeatherLocation:null, mobilePinned:null, dojoReminders:null };
-let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null, activeDocFolder = null;
+let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null;
 let activeMaintenanceItem = null;
 let goodThingPick = null;
 let financeChartWindow = "12";
@@ -3036,7 +3035,6 @@ async function loadAll(){
     dashboardRaw, ortoRaw, weatherLocationRaw, ortoWeatherLocationRaw,
     tripsRaw, bbqsRaw, maintenanceItemsRaw,
     financeRaw, sharedBoardsRaw, projectsRaw, projectsPrivateRaw,
-    docFoldersRaw, docFoldersPrivateRaw, ideasRaw,
     customTabsRaw, customTabsPrivateRaw,
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
@@ -3053,9 +3051,6 @@ async function loadAll(){
     store.get("sharedBoards", DEFAULTS.sharedBoards),
     store.get("projects", DEFAULTS.projects),
     store.get(privKey("projects"), []),
-    store.get("docFolders", []),
-    store.get(privKey("docFolders"), []),
-    store.get("ideas", []),
     store.get("customTabs", []),
     store.get(privKey("customTabs"), []),
     store.get(privKey("hiddenBuiltins"), []),
@@ -3232,12 +3227,12 @@ async function loadAll(){
     if(t.category==null) t.category = "";
     if(t.keyTask==null) t.keyTask = false;
   }));
-  state.docFolders = docFoldersRaw;
-  state.docFoldersPrivate = docFoldersPrivateRaw;
-  state.docFoldersPrivate.forEach(f=>{ f.private = true; });
-  state.docFolders = state.docFolders.concat(state.docFoldersPrivate);
-  state.docFolders.forEach(f=>{ if(!f.data) f.data = {files:[]}; if(!f.data.files) f.data.files = []; });
-  state.ideas = ideasRaw;
+  state.projects.forEach(p=>{
+    if(!p.data) p.data = { tasks: [] };
+    if(!p.data.docFolders) p.data.docFolders = [];
+    p.data.docFolders.forEach(f=>{ if(!f.files) f.files = []; });
+    if(!p.data.ideas) p.data.ideas = [];
+  });
   state.customTabs = customTabsRaw;
   state.customTabs.forEach(t=>migrateColorField(t, "color"));
   state.customTabsPrivate = customTabsPrivateRaw;
@@ -6653,14 +6648,6 @@ function saveProjects(quiet){
   if(quiet){ store.setQuiet("projects", shared); store.setQuiet(privKey("projects"), mine); }
   else { store.set("projects", shared); store.set(privKey("projects"), mine); }
 }
-// Stessa logica di saveProjects: solo i metadati dei file (nome, percorso, dimensione...) stanno
-// qui — i byte veri restano nello Storage di Supabase (bucket "documenti").
-function saveDocFolders(quiet){
-  const shared = state.docFolders.filter(f=>!f.private);
-  const mine = state.docFolders.filter(f=>f.private);
-  if(quiet){ store.setQuiet("docFolders", shared); store.setQuiet(privKey("docFolders"), mine); }
-  else { store.set("docFolders", shared); store.set(privKey("docFolders"), mine); }
-}
 function ganttSave(project){ saveProjects(false); }
 function ganttSaveQuiet(project){ saveProjects(true); }
 let ganttViewMode = {};
@@ -7336,17 +7323,26 @@ function renderProjectDetail(detail, project){
   const viewSwitch = el("div",{class:"gantt-view-switch"});
   const dashBtn = el("button",{class:"btn small"+(mode==="dashboard"?" primary":"")}, "📊 Dashboard");
   const timelineBtn = el("button",{class:"btn small"+(mode==="timeline"?" primary":"")}, "📅 Timeline");
+  const docsBtn = el("button",{class:"btn small"+(mode==="docs"?" primary":"")}, "📁 Documenti");
+  const ideasBtn = el("button",{class:"btn small"+(mode==="ideas"?" primary":"")}, "💡 Idee");
   dashBtn.addEventListener("click", ()=>{ ganttViewMode[project.id]="dashboard"; render("progetti"); });
   timelineBtn.addEventListener("click", ()=>{ ganttViewMode[project.id]="timeline"; render("progetti"); });
-  viewSwitch.appendChild(dashBtn); viewSwitch.appendChild(timelineBtn);
+  docsBtn.addEventListener("click", ()=>{ ganttViewMode[project.id]="docs"; render("progetti"); });
+  ideasBtn.addEventListener("click", ()=>{ ganttViewMode[project.id]="ideas"; render("progetti"); });
+  viewSwitch.appendChild(dashBtn); viewSwitch.appendChild(timelineBtn); viewSwitch.appendChild(docsBtn); viewSwitch.appendChild(ideasBtn);
   head.appendChild(viewSwitch);
-  const addBtn = el("button",{class:"btn primary small"}, "+ Nuova attività");
-  addBtn.addEventListener("click", ()=>{
-    const todayIso = isoDate(new Date());
-    openProjectTaskModal(project, {name:"", start:todayIso, end:addDaysISO(new Date(),3), progress:0}, ganttSave);
-  });
-  head.appendChild(addBtn);
+  if(mode==="dashboard" || mode==="timeline"){
+    const addBtn = el("button",{class:"btn primary small"}, "+ Nuova attività");
+    addBtn.addEventListener("click", ()=>{
+      const todayIso = isoDate(new Date());
+      openProjectTaskModal(project, {name:"", start:todayIso, end:addDaysISO(new Date(),3), progress:0}, ganttSave);
+    });
+    head.appendChild(addBtn);
+  }
   detail.appendChild(head);
+
+  if(mode==="docs"){ renderProjectDocs(detail, project); return; }
+  if(mode==="ideas"){ renderProjectIdeas(detail, project); return; }
 
   if(!tasks.length){
     detail.appendChild(emptyState("Aggiungi la prima attività per iniziare a costruire il piano.", ICON_CHECK));
@@ -7612,70 +7608,19 @@ function renderBbqDetail(detail, bbq){
   renderCategorizedChecklist(detail, bbq, save, "g"+bbq.id, "grigliate");
 }
 
-/* ---------------- IDEE ---------------- */
-// Lacheca di idee: a differenza delle altre schede non è una collezione con elenco+dettaglio,
-// ma tante card indipendenti mostrate tutte insieme (come dei post-it), pensate per essere
-// veloci da scrivere e da riordinare. Condivise tra i due account, una sola chiave "ideas".
-function saveIdeas(quiet){
-  (quiet ? store.setQuiet : store.set)("ideas", state.ideas);
-}
-function renderIdee(main){
-  main.appendChild(el("div",{class:"section-head"},[
-    builtinTabHeader("idee","Idee"),
-    el("span",{class:"tag"}, state.ideas.length+(state.ideas.length===1?" idea":" idee"))
-  ]));
-  const addBtn = el("button",{class:"btn primary", style:"margin-bottom:14px;"}, "+ Nuova idea");
-  addBtn.addEventListener("click", ()=>{
-    const idea = { id:"idea"+Date.now(), text:"", created:new Date().toLocaleDateString("it-IT") };
-    state.ideas.unshift(idea);
-    saveIdeas(false);
-    render("idee");
-    const ta = document.querySelector('.idea-card[data-idea-id="'+idea.id+'"] .idea-card-text');
-    if(ta) ta.focus();
-  });
-  main.appendChild(addBtn);
-
-  if(!state.ideas.length){
-    main.appendChild(emptyState("Aggiungi la prima idea: un pensiero, uno spunto, qualcosa da non dimenticare.", ICON_STAR_KPI));
-    return;
-  }
-
-  const grid = el("div",{class:"idea-grid"});
-  state.ideas.forEach((idea,i)=>{
-    const card = el("div",{class:"idea-card"});
-    card.dataset.ideaId = idea.id;
-    const head = el("div",{class:"idea-card-head"});
-    const grip = el("span",{class:"idea-card-grip", html:ICON_GRIP, title:"Trascina per riordinare"});
-    head.appendChild(grip);
-    const delBtn = el("button",{type:"button", class:"idea-card-del", title:"Elimina idea"}, "×");
-    delBtn.addEventListener("click", ()=>{
-      state.ideas = state.ideas.filter(x=>x.id!==idea.id);
-      saveIdeas(false); render("idee");
-    });
-    head.appendChild(delBtn);
-    card.appendChild(head);
-    const ta = el("textarea",{class:"idea-card-text", rows:"1", placeholder:"Scrivi qui la tua idea…"});
-    ta.value = idea.text;
-    ta.addEventListener("input", ()=>autoResize(ta));
-    ta.addEventListener("change", ()=>{ idea.text = ta.value; saveIdeas(false); });
-    card.appendChild(ta);
-    card.appendChild(el("div",{class:"idea-card-date"}, idea.created));
-    attachRowDrag(grip, card, i, state.ideas, ()=>{ saveIdeas(true); render("idee"); });
-    grid.appendChild(card);
-  });
-  main.appendChild(grid);
-}
-
-/* ---------------- DOCUMENTI ---------------- */
-// A differenza di tutte le altre schede, qui i "contenuti" veri (i byte dei file) non stanno
-// nel solito archivio di testo condiviso: sarebbe troppo pesante da scaricare/salvare ogni
-// volta (anche solo aprendo l'app). Stanno invece nello Storage di Supabase, un ripostiglio
-// a parte pensato apposta per i file — qui teniamo solo "l'etichetta" di ognuno (nome,
-// percorso, dimensione). Richiede che il bucket "documenti" sia stato creato una volta sola
-// dal pannello Supabase (vedi istruzioni fornite all'utente).
+/* ---------------- Progetti: Documenti e Idee (dentro ogni progetto) ---------------- */
+// Come Dashboard/Timeline, sono due modalità dello stesso progetto — non schede a sé.
+// Documenti: i byte veri dei file non stanno nel solito archivio di testo condiviso
+// (sarebbe troppo pesante da scaricare/salvare ogni volta, anche solo aprendo l'app).
+// Stanno nello Storage di Supabase, un ripostiglio a parte pensato apposta per i file —
+// dentro project.data.docFolders teniamo solo "l'etichetta" di ognuno (nome, percorso,
+// dimensione). Richiede che il bucket "documenti" sia stato creato una volta sola dal
+// pannello Supabase (vedi istruzioni fornite all'utente).
+// Idee: card indipendenti (stile post-it) in project.data.ideas, non un blocco note unico.
 const DOCS_BUCKET = "documenti";
-function docFolderBasePath(folder){
-  return folder.private ? ("private/"+currentUser.id+"/"+folder.id) : ("shared/"+folder.id);
+let ganttDocFolderActive = {}; // project.id -> id della cartella selezionata
+function docFolderBasePath(project, folder){
+  return (project.private ? ("private/"+currentUser.id) : "shared")+"/"+project.id+"/"+folder.id;
 }
 function fmtFileSize(bytes){
   if(bytes==null) return "";
@@ -7689,39 +7634,104 @@ function getDocSignedUrl(path, cb){
     if(data) cb(data.signedUrl);
   });
 }
-async function uploadDocFiles(folder, fileList, onDone, onError){
+async function uploadDocFiles(project, folder, fileList, onDone, onError){
   const files = Array.from(fileList);
   if(!files.length) return;
   const results = await Promise.all(files.map(async file=>{
     const fileId = "f"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
     const safeName = file.name.replace(/[^\w.\-]+/g,"_");
-    const path = docFolderBasePath(folder)+"/"+fileId+"-"+safeName;
+    const path = docFolderBasePath(project, folder)+"/"+fileId+"-"+safeName;
     const { error } = await sb.storage.from(DOCS_BUCKET).upload(path, file);
     if(error){ console.error("upload error", error); return { error, name:file.name }; }
     return { id:fileId, name:file.name, path, size:file.size, mimeType:file.type||"", uploadedAt:new Date().toISOString() };
   }));
   const ok = results.filter(r=>!r.error);
   const failed = results.filter(r=>r.error);
-  ok.forEach(rec=> folder.data.files.push(rec));
-  if(ok.length) saveDocFolders(false);
+  ok.forEach(rec=> folder.files.push(rec));
+  if(ok.length) ganttSave(project);
   onDone();
   if(failed.length) onError(failed);
 }
-function deleteDocFile(folder, file, onDone){
+function deleteDocFile(project, folder, file, onDone){
   sb.storage.from(DOCS_BUCKET).remove([file.path]).then(()=>{
-    folder.data.files = folder.data.files.filter(f=>f.id!==file.id);
-    saveDocFolders(false);
+    folder.files = folder.files.filter(f=>f.id!==file.id);
+    ganttSave(project);
     onDone();
   });
 }
-function renderDocFolderDetail(detail, folder){
+async function deleteDocFolder(project, folder){
+  const msg = folder.files.length
+    ? 'Eliminare la cartella "'+folder.name+'" e tutti i suoi '+folder.files.length+(folder.files.length===1?" file":" file")+'? Non si può annullare.'
+    : 'Eliminare la cartella "'+folder.name+'"?';
+  if(!(await confirmModal(msg, {danger:true, okLabel:"Elimina"}))) return false;
+  if(folder.files.length) await sb.storage.from(DOCS_BUCKET).remove(folder.files.map(f=>f.path));
+  project.data.docFolders = project.data.docFolders.filter(f=>f.id!==folder.id);
+  ganttSave(project);
+  return true;
+}
+function renderProjectDocs(detail, project){
+  const folders = project.data.docFolders;
+  const wrap = el("div",{class:"proj-docs-wrap"});
+  const list = el("div",{class:"proj-docs-folder-list"});
+  const newFolderBtn = el("button",{class:"btn primary small"}, "+ Nuova cartella");
+  newFolderBtn.addEventListener("click", ()=>{
+    const name = prompt("Nome della cartella:");
+    if(!name || !name.trim()) return;
+    const folder = { id:"df"+Date.now(), name:name.trim(), files:[] };
+    folders.push(folder);
+    ganttSave(project);
+    ganttDocFolderActive[project.id] = folder.id;
+    render("progetti");
+  });
+  list.appendChild(newFolderBtn);
+
+  if(folders.length && (!ganttDocFolderActive[project.id] || !folders.some(f=>f.id===ganttDocFolderActive[project.id]))){
+    ganttDocFolderActive[project.id] = folders[0].id;
+  }
+  const activeId = ganttDocFolderActive[project.id];
+
+  folders.forEach(folder=>{
+    const item = el("div",{class:"proj-docs-folder-item"+(folder.id===activeId?" active":"")});
+    item.appendChild(el("span",{class:"proj-docs-folder-name"}, folder.name));
+    item.appendChild(el("span",{class:"proj-docs-folder-count"}, String(folder.files.length)));
+    const renameBtn = el("span",{class:"proj-docs-folder-rename", html:ICON_EDIT, title:"Rinomina cartella"});
+    renameBtn.addEventListener("click",(e)=>{
+      e.stopPropagation();
+      const name = prompt("Rinomina cartella:", folder.name);
+      if(!name || !name.trim()) return;
+      folder.name = name.trim();
+      ganttSave(project); render("progetti");
+    });
+    item.appendChild(renameBtn);
+    const delBtn = el("button",{type:"button", class:"proj-docs-folder-del", title:"Elimina cartella"}, "×");
+    delBtn.addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      if(await deleteDocFolder(project, folder)) render("progetti");
+    });
+    item.appendChild(delBtn);
+    item.addEventListener("click", ()=>{ ganttDocFolderActive[project.id] = folder.id; render("progetti"); });
+    list.appendChild(item);
+  });
+  wrap.appendChild(list);
+
+  const docDetail = el("div",{class:"proj-docs-detail"});
+  const activeFolder = folders.find(f=>f.id===activeId);
+  if(!activeFolder){
+    docDetail.appendChild(emptyState("Crea una cartella per iniziare a caricare foto e documenti.", ICON_SUITCASE));
+  } else {
+    renderDocFolderFiles(docDetail, project, activeFolder);
+  }
+  wrap.appendChild(docDetail);
+  detail.appendChild(wrap);
+}
+function renderDocFolderFiles(detail, project, folder){
   const head = el("div",{class:"doc-head-row"});
   const uploadBtn = el("button",{class:"btn primary small"}, "+ Carica file");
   const fileInput = el("input",{type:"file", multiple:true, style:"display:none;"});
   function startUpload(fileList){
     uploadBtn.disabled = true; uploadBtn.textContent = "Caricamento…";
-    uploadDocFiles(folder, fileList, ()=>{
-      render("documenti");
+    uploadDocFiles(project, folder, fileList, ()=>{
+      render("progetti");
     }, async (failed)=>{
       await alertModal("Non sono riuscito a caricare "+failed.length+" file ("+failed.map(f=>f.name).join(", ")+"). "
         +"Controlla di aver creato il bucket \"documenti\" su Supabase Storage con le policy indicate.");
@@ -7746,19 +7756,19 @@ function renderDocFolderDetail(detail, folder){
   });
   detail.appendChild(dropZone);
 
-  if(!folder.data.files.length){
+  if(!folder.files.length){
     detail.appendChild(emptyState("Carica la prima foto o documento in questa cartella.", ICON_SUITCASE));
     return;
   }
 
   const grid = el("div",{class:"doc-grid"});
-  folder.data.files.slice().reverse().forEach(file=>{
+  folder.files.slice().reverse().forEach(file=>{
     const isImage = (file.mimeType||"").indexOf("image/")===0;
     const card = el("div",{class:"doc-card"});
     const delBtn = el("button",{type:"button", class:"doc-card-del", title:"Elimina file"}, "×");
     delBtn.addEventListener("click", async ()=>{
       if(!(await confirmModal('Eliminare "'+file.name+'"? Non si può annullare.', {danger:true, okLabel:"Elimina"}))) return;
-      deleteDocFile(folder, file, ()=> render("documenti"));
+      deleteDocFile(project, folder, file, ()=> render("progetti"));
     });
     card.appendChild(delBtn);
     const openFile = ()=> getDocSignedUrl(file.path, (url)=> window.open(url, "_blank"));
@@ -7778,6 +7788,49 @@ function renderDocFolderDetail(detail, folder){
     nameEl.addEventListener("click", openFile);
     card.appendChild(nameEl);
     card.appendChild(el("div",{class:"doc-card-meta"}, fmtFileSize(file.size)));
+    grid.appendChild(card);
+  });
+  detail.appendChild(grid);
+}
+function renderProjectIdeas(detail, project){
+  const ideas = project.data.ideas;
+  const addBtn = el("button",{class:"btn primary small", style:"margin-bottom:14px;"}, "+ Nuova idea");
+  addBtn.addEventListener("click", ()=>{
+    const idea = { id:"idea"+Date.now(), text:"", created:new Date().toLocaleDateString("it-IT") };
+    ideas.unshift(idea);
+    ganttSave(project);
+    render("progetti");
+    const ta = document.querySelector('.idea-card[data-idea-id="'+idea.id+'"] .idea-card-text');
+    if(ta) ta.focus();
+  });
+  detail.appendChild(addBtn);
+
+  if(!ideas.length){
+    detail.appendChild(emptyState("Aggiungi la prima idea per questo progetto.", ICON_STAR_KPI));
+    return;
+  }
+
+  const grid = el("div",{class:"idea-grid"});
+  ideas.forEach((idea,i)=>{
+    const card = el("div",{class:"idea-card"});
+    card.dataset.ideaId = idea.id;
+    const head = el("div",{class:"idea-card-head"});
+    const grip = el("span",{class:"idea-card-grip", html:ICON_GRIP, title:"Trascina per riordinare"});
+    head.appendChild(grip);
+    const delBtn = el("button",{type:"button", class:"idea-card-del", title:"Elimina idea"}, "×");
+    delBtn.addEventListener("click", ()=>{
+      project.data.ideas = project.data.ideas.filter(x=>x.id!==idea.id);
+      ganttSave(project); render("progetti");
+    });
+    head.appendChild(delBtn);
+    card.appendChild(head);
+    const ta = el("textarea",{class:"idea-card-text", rows:"1", placeholder:"Scrivi qui la tua idea…"});
+    ta.value = idea.text;
+    ta.addEventListener("input", ()=>autoResize(ta));
+    ta.addEventListener("change", ()=>{ idea.text = ta.value; ganttSave(project); });
+    card.appendChild(ta);
+    card.appendChild(el("div",{class:"idea-card-date"}, idea.created));
+    attachRowDrag(grip, card, i, ideas, ()=>{ ganttSaveQuiet(project); render("progetti"); });
     grid.appendChild(card);
   });
   detail.appendChild(grid);
@@ -9924,8 +9977,7 @@ function builtinTabHeader(key, fallbackLabel){
   ]);
 }
 const BUILTIN_TABS = {
-  orto: "Orto", viaggio: "Viaggi", grigliate: "Eventi", gomme: "Manuten\u00ADzione", progetti: "Progetti",
-  documenti: "Documenti", idee: "Idee", condivisi: "Condivisi"
+  orto: "Orto", viaggio: "Viaggi", grigliate: "Eventi", gomme: "Manuten\u00ADzione", progetti: "Progetti", condivisi: "Condivisi"
 };
 function applyHiddenBuiltins(){
   Object.keys(BUILTIN_TABS).forEach(key=>{
@@ -10340,16 +10392,6 @@ function render(tab){
     delBtnLabel:"Elimina progetto", emptyStateText:"Seleziona o crea un progetto per iniziare.", emptyStateIcon:ICON_CHECK
   });
   else if(tab==="finanze") renderFinanze(main);
-  else if(tab==="documenti") renderCollection(main, {
-    key:"docFolders", tab:"documenti", title:"Documenti", titleEl: builtinTabHeader("documenti","Documenti"), active:activeDocFolder,
-    setActive:(id)=>activeDocFolder=id, template:DOC_FOLDER_TEMPLATE, renderDetail:renderDocFolderDetail,
-    itemsLabel:"cartelle", newBtnLabel:"+ Nuova cartella", fixedTemplate:true, allowPrivate:true,
-    customSave: ()=>saveDocFolders(false),
-    namePrompt:"Nome della cartella:", renameTitle:"Rinomina cartella", renamePrompt:"Rinomina cartella:",
-    delBtnLabel:"Elimina cartella", emptyStateText:"Seleziona o crea una cartella per iniziare.", emptyStateIcon:ICON_SUITCASE,
-    newModalTitle:"Nuova cartella", newModalRequiredMsg:"Il nome della cartella è obbligatorio."
-  });
-  else if(tab==="idee") renderIdee(main);
   else if(tab==="condivisi") renderCollection(main, {
     key:"sharedBoards", tab:"condivisi", title:"Board condivise", titleEl: builtinTabHeader("condivisi","Condivisi"), active:activeSharedBoard,
     setActive:(id)=>activeSharedBoard=id, template:SHARED_BOARD_TEMPLATE, renderDetail:renderSharedBoardDetail
