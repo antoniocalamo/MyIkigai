@@ -1074,6 +1074,8 @@ input.pack-num{
 .gantt-view-switch{display:flex; gap:6px;}
 .gantt-toolbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px;}
 .gantt-toolbar-field{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft); font-weight:600;}
+.gantt-toolbar-checkbox{cursor:pointer;}
+.gantt-toolbar-checkbox input{accent-color:var(--forest); cursor:pointer;}
 .gantt-toolbar-select{
   font-size:12px; padding:4px 6px; border-radius:7px; border:1px solid var(--line); background:var(--card); color:var(--ink);
 }
@@ -6697,6 +6699,7 @@ let ganttGroupMode = {}; // project.id -> "status" | "category"
 let ganttSortMode = {};  // project.id -> chiave di TASK_SORT_OPTIONS
 let ganttZoomIdx = {};   // project.id -> indice in GANTT_ZOOM_LEVELS (solo vista Timeline)
 let ganttKeyFilter = {}; // project.id -> "all" | "key" (solo vista Timeline)
+let ganttShowCompleted = {}; // project.id -> false per nascondere le attività "Fatto" (Tabella e Timeline)
 const GANTT_ZOOM_LEVELS = [14,18,22,28,36,46,58];
 const GANTT_ZOOM_DEFAULT_IDX = GANTT_ZOOM_LEVELS.indexOf(28);
 const TASK_SORT_OPTIONS = [
@@ -6845,6 +6848,18 @@ function appendGroupSortControls(wrap, project){
   sortSel.addEventListener("change", ()=>{ ganttSortMode[project.id] = sortSel.value; render("progetti"); });
   sortWrap.appendChild(sortSel);
   wrap.appendChild(sortWrap);
+
+  const completedWrap = el("label",{class:"gantt-toolbar-field gantt-toolbar-checkbox"});
+  const completedCheck = el("input",{type:"checkbox"});
+  completedCheck.checked = ganttShowCompleted[project.id]!==false;
+  completedCheck.addEventListener("change", ()=>{ ganttShowCompleted[project.id] = completedCheck.checked; render("progetti"); });
+  completedWrap.appendChild(completedCheck);
+  completedWrap.appendChild(document.createTextNode("Mostra completate"));
+  wrap.appendChild(completedWrap);
+}
+// true se la attività va mostrata dato lo stato attuale del filtro "Mostra completate".
+function taskPassesCompletedFilter(project, task){
+  return ganttShowCompleted[project.id]!==false || task.status!=="done";
 }
 function openProjectTaskModal(project, task, save){
   openModal((modal, close)=>{
@@ -7165,7 +7180,8 @@ function renderProjectDashboard(detail, project, tasks, totalPct, totBudget, tot
 function renderProjectTable(detail, project, tasks){
   const groupMode = ganttGroupMode[project.id] || "status";
   const sortMode = ganttSortMode[project.id] || "start";
-  const groups = buildTaskGroups(tasks, groupMode);
+  const visibleTasks = tasks.filter(t=> taskPassesCompletedFilter(project, t));
+  const groups = buildTaskGroups(visibleTasks, groupMode);
 
   const wrap = el("div",{class:"project-table-wrap"});
   const titleRow = el("div",{class:"project-table-title-row"});
@@ -7379,7 +7395,9 @@ function renderProjectDetail(detail, project){
   timelineToolbar.appendChild(zoomWrap);
   detail.appendChild(timelineToolbar);
 
-  const displayTasks = keyFilter==="key" ? tasks.filter(t=>t.keyTask) : tasks;
+  const displayTasks = tasks
+    .filter(t=> keyFilter!=="key" || t.keyTask)
+    .filter(t=> taskPassesCompletedFilter(project, t));
   if(!displayTasks.length){
     detail.appendChild(emptyState("Nessuna attività chiave in questo progetto.", ICON_STAR_KPI));
     return;
