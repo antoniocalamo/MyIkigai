@@ -4425,7 +4425,9 @@ function openViewSettingsModal(){
     cancelBtn.addEventListener("click", close);
     const saveBtn = el("button",{class:"btn primary"},"Salva");
     saveBtn.addEventListener("click", ()=>{
-      state.dashboard.kpiSelection = Object.keys(KPI_CATALOG).filter(key=>checks[key].checked);
+      const keptInOrder = state.dashboard.kpiSelection.filter(key=>checks[key] && checks[key].checked);
+      const newlyChecked = Object.keys(KPI_CATALOG).filter(key=>checks[key].checked && !keptInOrder.includes(key));
+      state.dashboard.kpiSelection = keptInOrder.concat(newlyChecked);
       if(isMobileNow) state.dashboard.widgetsHiddenMobile = !hideCb.checked;
       else state.dashboard.widgetsHiddenDesktop = !hideCb.checked;
       state.dashboard.backlogCollapsed = !backlogCb.checked;
