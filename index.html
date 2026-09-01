@@ -648,7 +648,7 @@ textarea{resize:vertical;}
   display:flex; align-items:center; justify-content:center;
 }
 .orto-path-texture-toggle:hover{opacity:1;}
-.orto-obj.orto-selected{ outline:2px solid var(--forest); outline-offset:2px; }
+.orto-obj.orto-selected{ outline:3px solid #fff; outline-offset:1px; box-shadow:0 0 0 4px var(--forest), 0 4px 14px rgba(0,0,0,0.35); }
 /* su iOS, tenere premuto per trascinare veniva scambiato per "seleziona testo/immagine"
    (compaiono i marcatori blu di selezione): disattivato qui, riattivato nei campi editabili */
 .orto-obj, .orto-comment-pin{ -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
@@ -5638,19 +5638,28 @@ function renderOrtoDetailPanel(obj){
     panel.appendChild(row);
   }
 
+  // "input" tiene l'oggetto in memoria sempre aggiornato mentre si scrive (non solo quando si
+  // esce dal campo): senza, selezionare un'altra pianta prima di uscire dal campo perdeva quello
+  // che si era appena scritto, perché il valore non era ancora stato riportato sull'oggetto.
+  // Il salvataggio vero e proprio resta legato a "change" (uscita dal campo), per non scrivere
+  // su Supabase a ogni singolo tasto premuto.
   const nameInput = el("input",{type:"text", value:obj.name||""});
+  nameInput.addEventListener("input", ()=>{ obj.name=nameInput.value; });
   nameInput.addEventListener("change", ()=>{ obj.name=nameInput.value; store.set("orto", state.orto); render("orto"); });
   field("Nome", nameInput);
 
   const countInput = el("input",{type:"text", value:obj.plantCount||"", placeholder:"es. 6"});
+  countInput.addEventListener("input", ()=>{ obj.plantCount=countInput.value; });
   countInput.addEventListener("change", ()=>{ obj.plantCount=countInput.value; store.set("orto", state.orto); });
   field("N. piantine", countInput);
 
   const plantDateInput = el("input",{type:"date", value:obj.plantDate||""});
+  plantDateInput.addEventListener("input", ()=>{ obj.plantDate=plantDateInput.value; });
   plantDateInput.addEventListener("change", ()=>{ obj.plantDate=plantDateInput.value; store.set("orto", state.orto); });
   field("Data trapianto", plantDateInput);
 
   const harvestDateInput = el("input",{type:"date", value:obj.harvestDate||""});
+  harvestDateInput.addEventListener("input", ()=>{ obj.harvestDate=harvestDateInput.value; });
   harvestDateInput.addEventListener("change", ()=>{ obj.harvestDate=harvestDateInput.value; store.set("orto", state.orto); });
   field("Raccolta prevista", harvestDateInput);
 
@@ -5900,13 +5909,15 @@ function openNewOrtoObjectModal(){
       const def = ORTO_TYPES[isPlant ? "coltura" : selType];
       const allZ = state.orto.objects.map(o=>o.z||0);
       const z = allZ.length? Math.max(...allZ)+1 : 1;
-      state.orto.objects.push({
+      const newObj = {
         id:"o"+Date.now(), type: isPlant ? "coltura" : selType,
         plantKind: isPlant ? selPlant : null,
         name:nameInput.value.trim()||(plantDef?plantDef.label:def.label),
         color: plantDef ? plantDef.color : def.color,
         x:8, y:8, w: isContainer?280:130, h: isContainer?180:82, z, plantCount:"", plantDate:"", harvestDate:""
-      });
+      };
+      state.orto.objects.push(newObj);
+      selectedOrtoObjId = newObj.id;
       store.set("orto", state.orto);
       close(); render("orto");
     });
@@ -6053,7 +6064,9 @@ function makeResizable(handle, node, obj, board, onResize, corner){
       handle.removeEventListener("pointermove", move);
       handle.removeEventListener("pointerup", up);
       store.set("orto", state.orto);
+      selectedOrtoObjId = obj.id;
       if(onResize) onResize(obj.w, obj.h);
+      render("orto");
     }
     handle.addEventListener("pointermove", move);
     handle.addEventListener("pointerup", up);
