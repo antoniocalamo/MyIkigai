@@ -4994,11 +4994,27 @@ function openNewBoxModal(){
 /* ---------------- ORTO ---------------- */
 let activeCommentId = null;
 let activeRotationWarningId = null;
-let selectedOrtoObjId = null;
+// selezione multipla: insieme di id selezionati. Ctrl/Cmd+click (o Shift+click) su un elemento
+// lo aggiunge/toglie dalla selezione senza svuotare le altre; un click "semplice" azzera tutto
+// e seleziona solo quello. Trascinando uno qualsiasi degli elementi selezionati, se sono più di
+// uno, si spostano tutti insieme (vedi ortoGroupStartsFor/applyOrtoGroupDelta).
+let selectedOrtoObjIds = new Set();
+let ortoObjNodesById = new Map(); // id oggetto -> nodo DOM corrente, ricostruita ad ogni render("orto")
+function ortoSelectOnly(id){ selectedOrtoObjIds = id ? new Set([id]) : new Set(); }
+function ortoToggleSelect(id){
+  const next = new Set(selectedOrtoObjIds);
+  if(next.has(id)) next.delete(id); else next.add(id);
+  selectedOrtoObjIds = next;
+}
+function ortoClearSelection(){ selectedOrtoObjIds = new Set(); }
+function handleOrtoObjTap(id, meta){
+  if(meta && meta.multi) ortoToggleSelect(id); else ortoSelectOnly(id);
+  render("orto");
+}
 let ortoZoom = 1;
 let ortoHandMode = false;
 const ORTO_CANVAS_W = 1800, ORTO_CANVAS_H = 1100;
-let ortoClipboard = null;
+let ortoClipboard = null; // array di oggetti copiati (uno o più, con Ctrl/Cmd+C)
 let ortoKeyListenerAttached = false;
 function ensureOrtoKeyListener(){
   if(ortoKeyListenerAttached) return;
@@ -5008,34 +5024,37 @@ function ensureOrtoKeyListener(){
     const tag = document.activeElement ? document.activeElement.tagName : "";
     if(tag==="INPUT" || tag==="TEXTAREA") return; // non rubare copia/incolla/canc nei campi di testo
     if(e.key==="Delete" || e.key==="Backspace"){
-      if(!selectedOrtoObjId) return;
+      if(!selectedOrtoObjIds.size) return;
       e.preventDefault();
-      const obj = state.orto.objects.find(o=>o.id===selectedOrtoObjId);
-      if(obj){
-        state.orto.objects = state.orto.objects.filter(o=>o.id!==selectedOrtoObjId);
-        selectedOrtoObjId = null;
-        store.set("orto", state.orto); render("orto");
-      }
+      state.orto.objects = state.orto.objects.filter(o=>!selectedOrtoObjIds.has(o.id));
+      ortoClearSelection();
+      store.set("orto", state.orto); render("orto");
       return;
     }
     const mod = e.ctrlKey || e.metaKey;
     if(!mod) return;
     const key = e.key.toLowerCase();
     if(key==="c"){
-      if(!selectedOrtoObjId) return;
-      const obj = state.orto.objects.find(o=>o.id===selectedOrtoObjId);
-      if(obj){ ortoClipboard = JSON.parse(JSON.stringify(obj)); }
+      if(!selectedOrtoObjIds.size) return;
+      const objs = state.orto.objects.filter(o=>selectedOrtoObjIds.has(o.id));
+      if(objs.length) ortoClipboard = JSON.parse(JSON.stringify(objs));
     } else if(key==="v"){
-      if(!ortoClipboard) return;
+      if(!ortoClipboard || !ortoClipboard.length) return;
       e.preventDefault();
+      const OFFSET = 20; // un passo di griglia, per rendere visibile lo scarto dall'originale
       const allZ = state.orto.objects.map(o=>o.z||0);
-      const newObj = JSON.parse(JSON.stringify(ortoClipboard));
-      newObj.id = "o"+Date.now();
-      newObj.x = Math.min(88, (ortoClipboard.x||0)+4);
-      newObj.y = Math.min(88, (ortoClipboard.y||0)+4);
-      newObj.z = allZ.length ? Math.max(...allZ)+1 : 1;
-      state.orto.objects.push(newObj);
-      selectedOrtoObjId = newObj.id;
+      let nextZ = allZ.length ? Math.max(...allZ)+1 : 1;
+      const newIds = [];
+      ortoClipboard.forEach((src, i)=>{
+        const newObj = JSON.parse(JSON.stringify(src));
+        newObj.id = "o"+Date.now()+"_"+i+"_"+Math.round(Math.random()*99999);
+        newObj.x = Math.max(0, Math.min(ORTO_CANVAS_W-(newObj.w||130), (src.x||0)+OFFSET));
+        newObj.y = Math.max(0, Math.min(ORTO_CANVAS_H-(newObj.h||82), (src.y||0)+OFFSET));
+        newObj.z = nextZ++;
+        state.orto.objects.push(newObj);
+        newIds.push(newObj.id);
+      });
+      selectedOrtoObjIds = new Set(newIds);
       store.set("orto", state.orto); render("orto");
     }
   });
@@ -5283,6 +5302,7 @@ function renderOrto(main){
       const elemW = current.moveTarget.offsetWidth||0, elemH = current.moveTarget.offsetHeight||0;
       current.maxX = isPin ? (ORTO_CANVAS_W-24) : Math.max(0, ORTO_CANVAS_W-elemW);
       current.maxY = isPin ? (ORTO_CANVAS_H-24) : Math.max(0, ORTO_CANVAS_H-elemH);
+      current.groupStarts = isPin ? null : ortoGroupStartsFor(current.item);
     }
     function startPinch(pts, ids){
       mode = "pinching";
@@ -5336,6 +5356,7 @@ function renderOrto(main){
         x = Math.max(0, Math.min(current.maxX, x)); y = Math.max(0, Math.min(current.maxY, y));
         current.moveTarget.style.left = x+"px"; current.moveTarget.style.top = y+"px";
         current.item.x = x; current.item.y = y;
+        if(current.groupStarts) applyOrtoGroupDelta(current.groupStarts, x-current.startLeft, y-current.startTop);
         return;
       }
       if(mode==="panning"){
@@ -5397,6 +5418,7 @@ function renderOrto(main){
     if(ba!==bb) return ba-bb;
     return (a.z||0)-(b.z||0);
   });
+  ortoObjNodesById = new Map();
   sortedObjects.forEach(obj=>{
     const def = ORTO_TYPES[obj.type] || ORTO_TYPES.coltura;
     const plantDef = obj.plantKind ? ORTO_PLANTS.find(p=>p.key===obj.plantKind) : null;
@@ -5405,12 +5427,13 @@ function renderOrto(main){
     const kindClass = isContainer ? " orto-bed" : (isPlant ? " orto-plant" : " orto-element");
     const zBand = ortoZBand(obj);
     const cssZ = zBand===0 ? 0 : (zBand===1 ? 1 : Math.max(2, obj.z||2));
-    const node = el("div",{class:"orto-obj"+kindClass+(selectedOrtoObjId===obj.id?" orto-selected":""), style:`left:${obj.x}px; top:${obj.y}px; width:${obj.w||130}px; height:${obj.h||82}px; z-index:${cssZ};`});
+    const node = el("div",{class:"orto-obj"+kindClass+(selectedOrtoObjIds.has(obj.id)?" orto-selected":""), style:`left:${obj.x}px; top:${obj.y}px; width:${obj.w||130}px; height:${obj.h||82}px; z-index:${cssZ};`});
+    ortoObjNodesById.set(obj.id, node);
 
     const del = el("span",{class:"bed-del orto-ctrl", html:"✕"});
     del.addEventListener("click",(e)=>{
       e.stopPropagation();
-      if(selectedOrtoObjId===obj.id) selectedOrtoObjId=null;
+      selectedOrtoObjIds.delete(obj.id);
       state.orto.objects = state.orto.objects.filter(o=>o.id!==obj.id);
       store.set("orto", state.orto); render("orto");
     });
@@ -5491,7 +5514,7 @@ function renderOrto(main){
         }
       }
 
-      makeDraggable(hit, obj, board, {moveTarget:node, onTap:()=>{ selectedOrtoObjId = obj.id; render("orto"); }});
+      makeDraggable(hit, obj, board, {moveTarget:node, onTap:(meta)=>handleOrtoObjTap(obj.id, meta)});
     } else if(isPlant){
       node.style.background = obj.color || plantDef.color;
       const iconSize = Math.max(20, Math.min(obj.w||130, obj.h||82)*0.42);
@@ -5507,7 +5530,7 @@ function renderOrto(main){
       requestAnimationFrame(()=>autoResize(nameInput));
       resizeCallback = (w,h)=>{ bigIcon.style.fontSize = Math.max(20, Math.min(w,h)*0.42)+"px"; };
 
-      makeDraggable(node, obj, board, {onTap:()=>{ selectedOrtoObjId = obj.id; render("orto"); }});
+      makeDraggable(node, obj, board, {onTap:(meta)=>handleOrtoObjTap(obj.id, meta)});
     } else {
       const isPath = obj.type==="camminatoio";
       const isSiepe = obj.type==="siepe";
@@ -5562,7 +5585,7 @@ function renderOrto(main){
         requestAnimationFrame(()=>autoResize(nameInput));
       }
 
-      makeDraggable(node, obj, board, {onTap:()=>{ selectedOrtoObjId = obj.id; render("orto"); }});
+      makeDraggable(node, obj, board, {onTap:(meta)=>handleOrtoObjTap(obj.id, meta)});
     }
 
     addOrtoResizeHandles(node, obj, board, resizeCallback);
@@ -5605,20 +5628,55 @@ function renderOrto(main){
 
   board.addEventListener("mousedown",(e)=>{
     if(ortoHandMode) return;
-    if(e.target===board){ activeCommentId=null; selectedOrtoObjId=null; render("orto"); }
+    if(e.target===board){ activeCommentId=null; ortoClearSelection(); render("orto"); }
   });
 
-  const selectedObj = selectedOrtoObjId ? state.orto.objects.find(o=>o.id===selectedOrtoObjId) : null;
-  const selectedPlant = (selectedObj && selectedObj.plantKind) ? selectedObj : null;
-  layoutWrap.appendChild(renderOrtoDetailPanel(selectedPlant));
+  // gli id selezionati possono riferirsi a oggetti nel frattempo cancellati (es. dal tasto Canc
+  // di un'altra selezione, o dal pulsante ✕): li ripuliamo qui prima di passarli al pannello
+  let selectedObjs = [...selectedOrtoObjIds].map(id=>state.orto.objects.find(o=>o.id===id)).filter(Boolean);
+  if(selectedObjs.length !== selectedOrtoObjIds.size) selectedOrtoObjIds = new Set(selectedObjs.map(o=>o.id));
+  layoutWrap.appendChild(renderOrtoDetailPanel(selectedObjs));
   main.appendChild(layoutWrap);
 
   main.appendChild(scrollHintNote("Scorri per vedere tutti i mesi"));
   main.appendChild(renderOrtoCalendar());
 }
-function renderOrtoDetailPanel(obj){
-  const panel = el("div",{class:"orto-detail-panel"+(obj ? "" : " orto-detail-panel-empty")});
-  if(!obj){
+function renderOrtoDetailPanel(objs){
+  const empty = !objs || !objs.length;
+  const panel = el("div",{class:"orto-detail-panel"+(empty ? " orto-detail-panel-empty" : "")});
+  if(empty){
+    panel.appendChild(el("div",{class:"orto-detail-empty"}, [
+      el("span",{class:"orto-detail-empty-icon"}, "🌱"),
+      el("span",{}, "Seleziona una pianta sulla board per vederne e modificarne i dettagli qui.")
+    ]));
+    return panel;
+  }
+  if(objs.length > 1){
+    // selezione multipla (Ctrl/Cmd+click su più box): niente editor di dettaglio campo per campo
+    // (i box possono essere di tipo diverso), solo un riepilogo con le azioni di gruppo
+    const head = el("div",{class:"orto-detail-head"});
+    head.appendChild(el("span",{class:"orto-detail-emoji"}, "🗂️"));
+    head.appendChild(el("span",{class:"orto-detail-title"}, objs.length+" elementi selezionati"));
+    const closeBtn = el("span",{class:"orto-detail-close", html:"✕", title:"Deseleziona"});
+    closeBtn.addEventListener("click", ()=>{ ortoClearSelection(); render("orto"); });
+    head.appendChild(closeBtn);
+    panel.appendChild(head);
+    panel.appendChild(el("div",{style:"color:var(--ink-soft);font-size:13px;margin:4px 0 14px;line-height:1.5;"},
+      "Trascina uno qualsiasi degli elementi selezionati per spostarli tutti insieme. Ctrl/Cmd+C e Ctrl/Cmd+V copiano e incollano l'intero gruppo, Canc li elimina tutti."));
+    const delBtn = el("button",{class:"btn small danger", style:"width:100%;"}, "Elimina "+objs.length+" elementi");
+    delBtn.addEventListener("click", ()=>{
+      const ids = new Set(objs.map(o=>o.id));
+      state.orto.objects = state.orto.objects.filter(o=>!ids.has(o.id));
+      ortoClearSelection();
+      store.set("orto", state.orto); render("orto");
+    });
+    panel.appendChild(delBtn);
+    return panel;
+  }
+  const obj = objs[0];
+  if(!obj.plantKind){
+    // singolo elemento selezionato ma non è una pianta (aiuola, vialetto, ecc.): l'editor di
+    // dettaglio qui sotto è pensato solo per le piante, come già prima della selezione multipla
     panel.appendChild(el("div",{class:"orto-detail-empty"}, [
       el("span",{class:"orto-detail-empty-icon"}, "🌱"),
       el("span",{}, "Seleziona una pianta sulla board per vederne e modificarne i dettagli qui.")
@@ -5630,7 +5688,7 @@ function renderOrtoDetailPanel(obj){
   head.appendChild(el("span",{class:"orto-detail-emoji"}, plantDef.emoji));
   head.appendChild(el("span",{class:"orto-detail-title"}, obj.name||plantDef.label));
   const closeBtn = el("span",{class:"orto-detail-close", html:"✕", title:"Deseleziona"});
-  closeBtn.addEventListener("click", ()=>{ selectedOrtoObjId=null; render("orto"); });
+  closeBtn.addEventListener("click", ()=>{ ortoClearSelection(); render("orto"); });
   head.appendChild(closeBtn);
   panel.appendChild(head);
 
@@ -5674,7 +5732,7 @@ function renderOrtoDetailPanel(obj){
   const delBtn = el("button",{class:"btn small danger", style:"margin-top:12px;width:100%;"}, "Elimina pianta");
   delBtn.addEventListener("click", ()=>{
     state.orto.objects = state.orto.objects.filter(o=>o.id!==obj.id);
-    selectedOrtoObjId = null;
+    ortoClearSelection();
     store.set("orto", state.orto); render("orto");
   });
   panel.appendChild(delBtn);
@@ -5919,7 +5977,7 @@ function openNewOrtoObjectModal(){
         x:8, y:8, w: isContainer?280:130, h: isContainer?180:82, z, plantCount:"", plantDate:"", harvestDate:""
       };
       state.orto.objects.push(newObj);
-      selectedOrtoObjId = newObj.id;
+      ortoSelectOnly(newObj.id);
       store.set("orto", state.orto);
       close(); render("orto");
     });
@@ -5964,6 +6022,30 @@ async function loadOrtoWeather(container){
     container.appendChild(el("span",{}, "Meteo non disponibile al momento."));
   }
 }
+function ortoGroupStartsFor(item){
+  // se l'oggetto trascinato fa parte di una selezione multipla, restituisce la posizione di
+  // partenza di tutti GLI ALTRI oggetti selezionati (con il loro nodo DOM), così muovendone uno
+  // si possono spostare in blocco anche gli altri, mantenendo le posizioni relative
+  if(!item.id || !selectedOrtoObjIds.has(item.id) || selectedOrtoObjIds.size<2) return null;
+  const starts = [];
+  selectedOrtoObjIds.forEach(id=>{
+    if(id===item.id) return;
+    const obj = state.orto.objects.find(o=>o.id===id);
+    const node = ortoObjNodesById.get(id);
+    if(obj && node) starts.push({obj, node, startLeft:obj.x||0, startTop:obj.y||0});
+  });
+  return starts.length ? starts : null;
+}
+function applyOrtoGroupDelta(starts, dx, dy){
+  if(!starts) return;
+  starts.forEach(g=>{
+    let gx = g.startLeft+dx, gy = g.startTop+dy;
+    gx = Math.max(0, Math.min(ORTO_CANVAS_W-(g.obj.w||130), gx));
+    gy = Math.max(0, Math.min(ORTO_CANVAS_H-(g.obj.h||82), gy));
+    g.obj.x = gx; g.obj.y = gy;
+    g.node.style.left = gx+"px"; g.node.style.top = gy+"px";
+  });
+}
 function makeDraggable(handleEl, item, board, opts={}){
   const GRID_PX = 20;
   const moveTarget = opts.moveTarget || handleEl;
@@ -5979,11 +6061,13 @@ function makeDraggable(handleEl, item, board, opts={}){
        e.target.closest(".orto-ctrl")) return;
     e.preventDefault();
     handleEl.setPointerCapture(e.pointerId);
+    const withMulti = e.ctrlKey || e.metaKey || e.shiftKey;
     const startClientX = e.clientX, startClientY = e.clientY;
     const startLeft = item.x||0, startTop = item.y||0;
     const elemW = moveTarget.offsetWidth||0, elemH = moveTarget.offsetHeight||0;
     const maxX = isPin ? (ORTO_CANVAS_W-24) : Math.max(0, ORTO_CANVAS_W-elemW);
     const maxY = isPin ? (ORTO_CANVAS_H-24) : Math.max(0, ORTO_CANVAS_H-elemH);
+    const groupStarts = isPin ? null : ortoGroupStartsFor(item);
     let moved = false;
     function move(ev){
       if(Math.abs(ev.clientX-startClientX)>4 || Math.abs(ev.clientY-startClientY)>4) moved = true;
@@ -5995,12 +6079,13 @@ function makeDraggable(handleEl, item, board, opts={}){
       x = Math.max(0, Math.min(maxX, x)); y = Math.max(0, Math.min(maxY, y));
       moveTarget.style.left = x+"px"; moveTarget.style.top = y+"px";
       item.x = x; item.y = y;
+      if(groupStarts) applyOrtoGroupDelta(groupStarts, x-startLeft, y-startTop);
     }
     function up(){
       handleEl.removeEventListener("pointermove", move);
       handleEl.removeEventListener("pointerup", up);
       store.set("orto", state.orto);
-      if(!moved && onTap) onTap();
+      if(!moved && onTap) onTap({multi:withMulti});
     }
     handleEl.addEventListener("pointermove", move);
     handleEl.addEventListener("pointerup", up);
@@ -6066,7 +6151,7 @@ function makeResizable(handle, node, obj, board, onResize, corner){
       handle.removeEventListener("pointermove", move);
       handle.removeEventListener("pointerup", up);
       store.set("orto", state.orto);
-      selectedOrtoObjId = obj.id;
+      ortoSelectOnly(obj.id);
       if(onResize) onResize(obj.w, obj.h);
       render("orto");
     }
