@@ -2508,6 +2508,13 @@ document.getElementById("zoom-out-btn").addEventListener("click", ()=>{
 });
 
 let keySnapshots = {};
+// Chiavi il cui caricamento iniziale è fallito per un errore vero (rete/Supabase), non perché
+// il dato è semplicemente assente. loadAll() ha diversi punti in cui, se una chiave sembra
+// "vuota", crea automaticamente una struttura di base e la salva subito — utile per un utente
+// davvero nuovo, ma pericoloso se il "vuoto" era solo un errore temporaneo: quei punti
+// controllano questo insieme prima di salvare, per non sovrascrivere dati reali con dei
+// default a causa di un banale intoppo di connessione.
+let keyLoadFailed = new Set();
 // Quanti salvataggi verso Supabase sono "in volo" in questo momento. Se chiudi/navighi via
 // mentre questo è >0, il browser interrompe la richiesta a metà — troppo bruscamente perché il
 // codice faccia in tempo a mostrare l'avviso di errore. L'unica difesa possibile lato browser è
@@ -2521,11 +2528,23 @@ const store = {
         .select("value")
         .eq("key", key)
         .maybeSingle();
-      const val = (error || !data) ? structuredClone(fallback) : data.value;
+      if(error){
+        // Un errore vero (rete/Supabase) NON significa "utente nuovo, dati assenti": va
+        // distinto perché il chiamante non deve trattarlo come sicuro da poi risalvare
+        // (altrimenti un banale intoppo di connessione può sovrascrivere per sempre dati
+        // reali con dei valori vuoti/di base — è esattamente cosa ha causato una perdita
+        // di dati reale nell'Orto).
+        console.error("supabase get error", key, error);
+        keyLoadFailed.add(key);
+        keySnapshots[key] = structuredClone(fallback);
+        return structuredClone(fallback);
+      }
+      const val = data ? data.value : structuredClone(fallback);
       keySnapshots[key] = structuredClone(val);
       return val;
     }catch(e){
       console.error("supabase get error", key, e);
+      keyLoadFailed.add(key);
       keySnapshots[key] = structuredClone(fallback);
       return structuredClone(fallback);
     }
@@ -3131,7 +3150,12 @@ async function loadAll(){
     state.dashboard.daysV2 = true;
   }
   pruneOldDays(state.dashboard.days);
-  store.setQuiet(privKey("dashboard"), state.dashboard);
+  // Se il caricamento di questa chiave è fallito per un errore vero (rete/Supabase), quello che
+  // abbiamo in mano è solo il valore di riserva, non un dato "confermato vuoto": salvarlo
+  // sovrascriverebbe per sempre dati reali con dei default, per colpa di un banale intoppo di
+  // connessione. In quel caso si usa comunque in questa sessione (l'app resta utilizzabile),
+  // ma non lo si risalva finché non arriva un caricamento riuscito.
+  if(!keyLoadFailed.has(privKey("dashboard"))) store.setQuiet(privKey("dashboard"), state.dashboard);
 
   state.orto = ortoRaw;
   if(state.orto.lastWatered===undefined) state.orto.lastWatered = "";
@@ -3141,7 +3165,7 @@ async function loadAll(){
       id:b.id, type:"coltura", name:b.name, color:b.color||ORTO_TYPES.coltura.color,
       x:b.x, y:b.y, w:130, h:82, plantCount:"", plantDate:b.date||"", harvestDate:""
     }));
-    store.setQuiet("orto", state.orto);
+    if(!keyLoadFailed.has("orto")) store.setQuiet("orto", state.orto);
   }
   if(!state.orto.comments) state.orto.comments = [];
   if(!state.orto.seasons) state.orto.seasons = [];
@@ -3160,7 +3184,7 @@ async function loadAll(){
       c.y = Math.round((c.y/100)*REF_H);
     });
     state.orto.migratedAbsCoords = true;
-    store.setQuiet("orto", state.orto);
+    if(!keyLoadFailed.has("orto")) store.setQuiet("orto", state.orto);
   }
 
   state.weatherLocation = weatherLocationRaw;
@@ -3209,7 +3233,7 @@ async function loadAll(){
       }
     });
     state.finance.investments = order.map(k=>merged[k]);
-    store.setQuiet(privKey("finance"), state.finance);
+    if(!keyLoadFailed.has(privKey("finance"))) store.setQuiet(privKey("finance"), state.finance);
   }
   state.sharedBoards = migrateSubItemTypes(sharedBoardsRaw);
   state.projects = projectsRaw;
@@ -3283,6 +3307,16 @@ async function startApp(){
   const greetName = USER_NAMES[currentUser.email] || currentUser.email;
   document.getElementById("user-email").textContent = getGreeting() + ", " + greetName + "!" + (isGuest ? " (guest)" : "");
   await loadAll();
+  if(keyLoadFailed.size){
+    // Almeno una scheda non è stata caricata per un errore vero (rete/Supabase): quello che si
+    // vede ora potrebbe essere incompleto o "vuoto di riserva", non il dato reale. Meglio dirlo
+    // subito e chiaramente, con un modo comodo per riprovare, piuttosto che lasciare l'utente
+    // a chiedersi perché una scheda sembra improvvisamente vuota.
+    saveErrorToast.show(
+      "Non sono riuscito a caricare tutti i tuoi dati (problema di connessione). Quello che vedi potrebbe essere incompleto: ricarica la pagina prima di modificare qualcosa.",
+      async ()=>{ location.reload(); }
+    );
+  }
   applyZoom();
   applyAppTheme();
   currentTagline = state.taglines.length ? state.taglines[Math.floor(Math.random()*state.taglines.length)] : "";
