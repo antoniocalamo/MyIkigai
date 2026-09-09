@@ -1466,6 +1466,13 @@ input.cashflow-item-occ-input{
 .invest-edit-lot-row{display:flex; align-items:center; gap:6px;}
 .invest-edit-lot-row select{width:90px; flex-shrink:0;}
 .invest-edit-lot-input{width:auto; flex:1; min-width:0;}
+.invest-watchlist-row{
+  display:flex; align-items:center; gap:14px; padding:12px 16px; flex-wrap:wrap;
+  background:var(--card); border:1px solid var(--line); border-radius:10px;
+}
+.invest-watchlist-thresholds{display:flex; gap:14px; flex-wrap:wrap;}
+.invest-watchlist-threshold{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft);}
+.invest-watchlist-threshold input{width:80px;}
 .finance-block-liquidity{background:var(--fin-liquid-bg); border-color:var(--fin-liquid-border);}
 .finance-block-liquidity h4{color:var(--fin-liquid-head);}
 .finance-block-nonliquid{background:var(--fin-nonliquid-bg); border-color:var(--fin-nonliquid-border);}
@@ -2111,7 +2118,7 @@ const DEFAULTS = {
   trips: [],
   bbqs: [],
   tires: [],
-  finance: { liquidity: [], nonliquid: [], debts: [], history: [], investments: [], investAutoPriceEnabled: false, investRealizedArchive: {}, cashflow:{incomes:[], expenses:[]} },
+  finance: { liquidity: [], nonliquid: [], debts: [], history: [], investments: [], investAutoPriceEnabled: false, investRealizedArchive: {}, watchlist: [], cashflow:{incomes:[], expenses:[]} },
   sharedBoards: [],
   projects: [],
   weatherLocation: {name:"Milano", lat:45.4642, lon:9.19}
@@ -3205,6 +3212,7 @@ async function loadAll(){
   if(!state.finance.cashflow || !state.finance.cashflow.incomes){ state.finance.cashflow = {incomes:[], expenses:[]}; }
   if(!state.finance.investments) state.finance.investments = [];
   if(state.finance.investAutoPriceEnabled===undefined) state.finance.investAutoPriceEnabled = false;
+  if(!state.finance.watchlist) state.finance.watchlist = [];
   if(state.finance.investRealizedArchive===undefined) state.finance.investRealizedArchive = {};
   if(typeof state.finance.investRealizedArchive==="number"){
     // formato vecchio: un unico totale non diviso per anno, lo mettiamo sull'anno corrente
@@ -3349,6 +3357,7 @@ async function startApp(){
   document.querySelector('.tab[data-tab="dashboard"]').classList.add("active");
   // Piccolo ritardo per dare tempo allo script accounts.google.com di caricarsi (è async/defer).
   setTimeout(attemptSilentGcalReauth, 800);
+  setTimeout(initWatchlistMonitor, 1500);
 }
 document.getElementById("login-form").addEventListener("submit", async (e)=>{
   e.preventDefault();
@@ -9062,6 +9071,46 @@ function openManualHoldingModal(){
   });
 }
 
+function openAddWatchlistModal(match){
+  openModal((modal, close)=>{
+    modal.appendChild(el("h3",{}, "Aggiungi alla Watchlist — "+match.symbol));
+    modal.appendChild(el("div",{style:"font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;"},
+      [match.instrument_name||match.name||"", match.exchange||"", match.currency||""].filter(Boolean).join(" · ")));
+    modal.appendChild(el("div",{style:"font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;"},
+      "Imposta almeno una soglia: verrai avvisato quando il prezzo la supera (in una direzione o nell'altra, non serve possedere il titolo)."));
+    modal.appendChild(el("div",{class:"field-label"},"Avvisami se il prezzo sale sopra (facoltativo, nella valuta del titolo: "+(match.currency||"EUR")+")"));
+    const aboveInp = el("input",{type:"text", placeholder:"es. 100,00"});
+    modal.appendChild(aboveInp);
+    modal.appendChild(el("div",{class:"field-label"},"Avvisami se il prezzo scende sotto (facoltativo)"));
+    const belowInp = el("input",{type:"text", placeholder:"es. 80,00"});
+    modal.appendChild(belowInp);
+    const errBox = el("div",{style:"color:var(--rust); font-size:12px; margin-top:8px; min-height:16px;"});
+    modal.appendChild(errBox);
+    const actions = el("div",{class:"modal-actions"});
+    const cancelBtn = el("button",{class:"btn ghost"},"Annulla");
+    cancelBtn.addEventListener("click", close);
+    const saveBtn = el("button",{class:"btn primary"},"Aggiungi");
+    saveBtn.addEventListener("click", ()=>{
+      const above = aboveInp.value.trim() ? parseItalianNumber(aboveInp.value) : null;
+      const below = belowInp.value.trim() ? parseItalianNumber(belowInp.value) : null;
+      if(!above && !below){ errBox.textContent = "Imposta almeno una soglia (sopra o sotto)."; return; }
+      if(!state.finance.watchlist) state.finance.watchlist = [];
+      state.finance.watchlist.push({
+        id:"wl"+Date.now()+Math.random().toString(36).slice(2,7),
+        symbol: match.symbol, name: match.instrument_name||match.name||match.symbol,
+        exchange: match.exchange||"", micCode: match.mic_code||"", currency: (match.currency||"EUR").toUpperCase(),
+        alertAbove: above, alertBelow: below,
+        lastPrice: null, lastCheckedAt: null,
+        notifiedAbove: false, notifiedBelow: false
+      });
+      store.set(privKey("finance"), state.finance);
+      close(); render("finanze");
+    });
+    actions.appendChild(cancelBtn); actions.appendChild(saveBtn);
+    modal.appendChild(actions);
+  });
+}
+
 function openAddOrderModal(inv){
   openModal((modal, close)=>{
     modal.appendChild(el("h3",{},"Nuovo ordine — "+inv.symbol));
@@ -9298,6 +9347,81 @@ async function refreshInvestmentPrices(){
   }
   store.set(privKey("finance"), state.finance);
   render("finanze");
+}
+
+// Controlla il prezzo di ogni titolo in Watchlist e, se supera una soglia impostata, avvisa con
+// una notifica del browser (silenziosa se il controllo parte da solo in background, con un
+// riepilogo degli errori solo se l'ha avviato la persona cliccando "Controlla ora"). L'invio
+// dell'email via Brevo è un pezzo separato che gira su Supabase, fuori da questo file.
+async function refreshWatchlistPrices(opts){
+  const silent = !!(opts && opts.silent);
+  const watchlist = state.finance.watchlist || [];
+  if(!watchlist.length) return;
+  const failures = [];
+  for(const w of watchlist){
+    try{
+      let q = `invest-prices?action=quote&symbol=${encodeURIComponent(w.symbol)}`;
+      if(w.micCode) q += `&mic_code=${encodeURIComponent(w.micCode)}`;
+      else if(w.exchange) q += `&exchange=${encodeURIComponent(w.exchange)}`;
+      const { data, error } = await sb.functions.invoke(q, { method:"GET" });
+      if(!error && data && data.close && !isNaN(parseFloat(data.close))){
+        const norm = normalizePriceCurrency(parseFloat(data.close), data.currency || w.currency);
+        w.lastPrice = norm.price;
+        w.currency = norm.currency;
+        w.lastCheckedAt = new Date().toISOString();
+        checkWatchlistThreshold(w);
+      } else {
+        failures.push(w.symbol + (data&&data.message ? " ("+data.message+")" : ""));
+      }
+    }catch(e){ failures.push(w.symbol); }
+  }
+  store.set(privKey("finance"), state.finance);
+  if(!silent && failures.length){
+    await alertModal("Non sono riuscito a controllare: "+failures.join(", ")+".\nSpesso è perché il piano gratuito di Twelve Data non copre quel titolo (es. ETF europei).");
+  }
+  if(currentRenderedTab==="finanze") render("finanze");
+}
+
+// Confronta l'ultimo prezzo con le soglie impostate: se le supera e non l'abbiamo già segnalato,
+// notifica; se il prezzo torna "dentro" la soglia, resetta l'avviso così può scattare di nuovo
+// se in futuro la supera un'altra volta (altrimenti avviserebbe solo la primissima volta mai).
+function checkWatchlistThreshold(w){
+  if(w.alertAbove!=null){
+    if(w.lastPrice>=w.alertAbove && !w.notifiedAbove){
+      notifyBrowser(w.symbol+" ha superato "+fmtNativeAmount(w.alertAbove, w.currency), w.name+" ora è a "+fmtNativeAmount(w.lastPrice, w.currency));
+      w.notifiedAbove = true;
+    } else if(w.lastPrice<w.alertAbove){
+      w.notifiedAbove = false;
+    }
+  }
+  if(w.alertBelow!=null){
+    if(w.lastPrice<=w.alertBelow && !w.notifiedBelow){
+      notifyBrowser(w.symbol+" è sceso sotto "+fmtNativeAmount(w.alertBelow, w.currency), w.name+" ora è a "+fmtNativeAmount(w.lastPrice, w.currency));
+      w.notifiedBelow = true;
+    } else if(w.lastPrice>w.alertBelow){
+      w.notifiedBelow = false;
+    }
+  }
+}
+
+function notifyBrowser(title, body){
+  if(typeof Notification==="undefined" || Notification.permission!=="granted") return;
+  try{
+    const iconEl = document.getElementById("favicon-link");
+    new Notification(title, { body, icon: iconEl ? iconEl.href : undefined });
+  }catch(e){ /* alcuni browser/contesti (es. iOS Safari) non supportano le notifiche: nessun blocco */ }
+}
+
+// Avviato una volta all'apertura della app: controlla subito, poi ogni ora, indipendentemente
+// dalla scheda su cui ti trovi (così l'avviso può arrivare anche se non sei su Finanze).
+let watchlistMonitorStarted = false;
+function initWatchlistMonitor(){
+  if(watchlistMonitorStarted) return; // evita intervalli duplicati su un nuovo login nella stessa sessione del browser
+  watchlistMonitorStarted = true;
+  if((state.finance.watchlist||[]).length) refreshWatchlistPrices({silent:true});
+  setInterval(()=>{
+    if(state.finance && (state.finance.watchlist||[]).length) refreshWatchlistPrices({silent:true});
+  }, 60*60*1000);
 }
 
 // Grafico a barre del P&L realizzato per anno solare (una barra per anno, sopra/sotto lo zero
@@ -9547,6 +9671,99 @@ function renderFinanzeInvestimenti(main){
   realizedChartBlock.appendChild(el("h4",{},"Andamento del P&L realizzato"));
   realizedChartBlock.appendChild(renderInvestRealizedChart(totalRealizedByYear));
   main.appendChild(realizedChartBlock);
+
+  // --- Watchlist: titoli monitorati con soglia di prezzo, avvisa anche se non li possiedi ---
+  {
+    const watchlist = state.finance.watchlist || [];
+    const wlBlock = el("div",{class:"card cat-block"});
+    const wlHead = el("div",{style:"display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:8px;"});
+    wlHead.appendChild(el("h4",{style:"margin:0;"},"👁 Watchlist"));
+    const wlActions = el("div",{style:"display:flex; align-items:center; gap:10px;"});
+    if(watchlist.length){
+      const checkBtn = el("button",{class:"btn ghost small"},"🔔 Controlla ora");
+      checkBtn.addEventListener("click", ()=>{
+        checkBtn.textContent = "Controllo…"; checkBtn.disabled = true;
+        refreshWatchlistPrices();
+      });
+      wlActions.appendChild(checkBtn);
+    }
+    const addWlBtn = el("button",{class:"btn ghost small"},"+ Aggiungi alla Watchlist");
+    addWlBtn.addEventListener("click", ()=> openInvestSearchModal(openAddWatchlistModal,
+      ()=> alertModal("La Watchlist funziona solo con titoli cercabili online (serve un prezzo aggiornabile in automatico): i titoli manuali come i BTP non sono supportati qui.")
+    ));
+    wlActions.appendChild(addWlBtn);
+    wlHead.appendChild(wlActions);
+    wlBlock.appendChild(wlHead);
+
+    if(watchlist.length && typeof Notification!=="undefined" && Notification.permission==="default"){
+      const permRow = el("div",{class:"finance-note", style:"margin-bottom:10px;"});
+      permRow.appendChild(document.createTextNode("Per ricevere l'avviso anche come notifica del browser (oltre all'email, se configurata): "));
+      const permLink = el("span",{class:"invest-manual-link", style:"margin:0;"}, "attiva le notifiche →");
+      permLink.addEventListener("click", ()=> Notification.requestPermission().then(()=> render("finanze")));
+      permRow.appendChild(permLink);
+      wlBlock.appendChild(permRow);
+    } else if(watchlist.length && typeof Notification!=="undefined" && Notification.permission==="denied"){
+      wlBlock.appendChild(el("div",{class:"finance-note"},
+        "Notifiche del browser bloccate per questo sito: riceverai comunque l'email (se configurata), ma non l'avviso a schermo. Le riattivi dalle impostazioni del browser."));
+    }
+
+    if(!watchlist.length){
+      wlBlock.appendChild(el("div",{class:"empty-hint"},"Nessun titolo monitorato. Aggiungine uno per essere avvisato quando il prezzo supera una soglia, anche se non lo possiedi."));
+    } else {
+      const wlList = el("div",{class:"invest-list"});
+      watchlist.forEach(w=>{
+        const row = el("div",{class:"invest-watchlist-row"});
+        const mainCol = el("div",{class:"invest-row-main"});
+        mainCol.appendChild(el("span",{class:"invest-symbol"}, w.symbol));
+        mainCol.appendChild(el("span",{class:"invest-name"}, w.name));
+        mainCol.appendChild(el("span",{class:"invest-updated"+(w.lastCheckedAt?"":" stale")},
+          w.lastCheckedAt ? "controllato il "+new Date(w.lastCheckedAt).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "non ancora controllato"
+        ));
+        row.appendChild(mainCol);
+        row.appendChild(el("div",{class:"invest-value"}, w.lastPrice!=null ? fmtNativeAmount(w.lastPrice, w.currency) : "—"));
+
+        const thresholds = el("div",{class:"invest-watchlist-thresholds"});
+        const aboveWrap = el("div",{class:"invest-watchlist-threshold"});
+        aboveWrap.appendChild(el("span",{},"↑ sopra"));
+        const aboveInp = el("input",{type:"text", class:"invest-edit-lot-input", placeholder:"—"});
+        aboveInp.value = w.alertAbove!=null ? String(w.alertAbove).replace(".",",") : "";
+        aboveInp.addEventListener("change", ()=>{
+          w.alertAbove = aboveInp.value.trim() ? parseItalianNumber(aboveInp.value) : null;
+          w.notifiedAbove = false; // soglia cambiata: si riparte, altrimenti non avviserebbe più
+          store.set(privKey("finance"), state.finance);
+        });
+        aboveWrap.appendChild(aboveInp);
+        thresholds.appendChild(aboveWrap);
+        const belowWrap = el("div",{class:"invest-watchlist-threshold"});
+        belowWrap.appendChild(el("span",{},"↓ sotto"));
+        const belowInp = el("input",{type:"text", class:"invest-edit-lot-input", placeholder:"—"});
+        belowInp.value = w.alertBelow!=null ? String(w.alertBelow).replace(".",",") : "";
+        belowInp.addEventListener("change", ()=>{
+          w.alertBelow = belowInp.value.trim() ? parseItalianNumber(belowInp.value) : null;
+          w.notifiedBelow = false;
+          store.set(privKey("finance"), state.finance);
+        });
+        belowWrap.appendChild(belowInp);
+        thresholds.appendChild(belowWrap);
+        row.appendChild(thresholds);
+
+        const wlRowActions = el("div",{class:"invest-row-actions"});
+        const del = el("span",{class:"del", html:"✕"});
+        del.addEventListener("click", ()=>{
+          if(confirm("Rimuovere "+w.symbol+" dalla Watchlist?")){
+            state.finance.watchlist = state.finance.watchlist.filter(x=>x!==w);
+            store.set(privKey("finance"), state.finance); render("finanze");
+          }
+        });
+        wlRowActions.appendChild(del);
+        row.appendChild(wlRowActions);
+
+        wlList.appendChild(row);
+      });
+      wlBlock.appendChild(wlList);
+    }
+    main.appendChild(wlBlock);
+  }
 
   // --- ordini recenti (ogni lotto, filtrabile per periodo) ---
   main.appendChild(el("div",{class:"section-head", style:"margin-top:28px;"},[el("h1",{style:"font-size:20px;"},"Ordini recenti")]));
