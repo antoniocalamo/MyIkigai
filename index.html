@@ -8887,6 +8887,21 @@ function normalizePriceCurrency(price, currency){
   }
   return { price, currency: (currency||"EUR").toUpperCase() };
 }
+// Fonte di riserva gratuita (Yahoo Finance, via la funzione Supabase "yahoo-quote") usata solo
+// quando Twelve Data non copre il titolo con il piano gratuito (tipico per gli ETF europei).
+// Ritorna {close, currency} come la chiamata a invest-prices, oppure null se non trova nulla.
+async function fetchFallbackQuote(symbol, micCode, exchange){
+  try{
+    let q = `yahoo-quote?symbol=${encodeURIComponent(symbol)}`;
+    if(micCode) q += `&mic_code=${encodeURIComponent(micCode)}`;
+    if(exchange) q += `&exchange=${encodeURIComponent(exchange)}`;
+    const { data, error } = await sb.functions.invoke(q, { method:"GET" });
+    if(!error && data && data.close && !isNaN(parseFloat(data.close))){
+      return { close: parseFloat(data.close), currency: data.currency };
+    }
+  }catch(e){ /* nessuna riserva disponibile: chi chiama resta con l'errore originale */ }
+  return null;
+}
 function investLotsTotals(inv){
   // Elabora i lotti in ordine cronologico (acquisti/vendite) mantenendo un costo medio
   // ponderato corrente; sulle vendite scala qty/costo proporzionalmente e accumula il realizzato.
@@ -9331,8 +9346,16 @@ async function refreshInvestmentPrices(){
       if(inv.micCode) q += `&mic_code=${encodeURIComponent(inv.micCode)}`;
       else if(inv.exchange) q += `&exchange=${encodeURIComponent(inv.exchange)}`;
       const { data, error } = await sb.functions.invoke(q, { method:"GET" });
+      let norm = null;
       if(!error && data && data.close && !isNaN(parseFloat(data.close))){
-        const norm = normalizePriceCurrency(parseFloat(data.close), data.currency || inv.currency);
+        norm = normalizePriceCurrency(parseFloat(data.close), data.currency || inv.currency);
+      } else {
+        // Twelve Data non copre questo titolo (tipico per gli ETF europei sul piano gratuito):
+        // proviamo la fonte di riserva gratuita (Yahoo Finance) prima di segnalarlo come fallito.
+        const fallback = await fetchFallbackQuote(inv.symbol, inv.micCode, inv.exchange);
+        if(fallback) norm = normalizePriceCurrency(fallback.close, fallback.currency || inv.currency);
+      }
+      if(norm){
         inv.lastPrice = norm.price;
         inv.currency = norm.currency;
         inv.lastPriceAt = new Date().toISOString();
@@ -9343,7 +9366,7 @@ async function refreshInvestmentPrices(){
     }catch(e){ failures.push(inv.symbol); }
   }
   if(failures.length){
-    await alertModal("Non sono riuscito ad aggiornare automaticamente: "+failures.join(", ")+".\nSpesso è perché il piano gratuito di Twelve Data non copre quel titolo (es. ETF europei) — in quel caso usa l'icona 💰 sulla riga per aggiornarne il prezzo a mano.");
+    await alertModal("Non sono riuscito ad aggiornare automaticamente: "+failures.join(", ")+".\nUsa l'icona 💰 sulla riga per aggiornarne il prezzo a mano.");
   }
   store.set(privKey("finance"), state.finance);
   render("finanze");
@@ -9364,8 +9387,15 @@ async function refreshWatchlistPrices(opts){
       if(w.micCode) q += `&mic_code=${encodeURIComponent(w.micCode)}`;
       else if(w.exchange) q += `&exchange=${encodeURIComponent(w.exchange)}`;
       const { data, error } = await sb.functions.invoke(q, { method:"GET" });
+      let norm = null;
       if(!error && data && data.close && !isNaN(parseFloat(data.close))){
-        const norm = normalizePriceCurrency(parseFloat(data.close), data.currency || w.currency);
+        norm = normalizePriceCurrency(parseFloat(data.close), data.currency || w.currency);
+      } else {
+        // Twelve Data non copre questo titolo: proviamo la fonte di riserva (Yahoo Finance).
+        const fallback = await fetchFallbackQuote(w.symbol, w.micCode, w.exchange);
+        if(fallback) norm = normalizePriceCurrency(fallback.close, fallback.currency || w.currency);
+      }
+      if(norm){
         w.lastPrice = norm.price;
         w.currency = norm.currency;
         w.lastCheckedAt = new Date().toISOString();
@@ -9377,7 +9407,7 @@ async function refreshWatchlistPrices(opts){
   }
   store.set(privKey("finance"), state.finance);
   if(!silent && failures.length){
-    await alertModal("Non sono riuscito a controllare: "+failures.join(", ")+".\nSpesso è perché il piano gratuito di Twelve Data non copre quel titolo (es. ETF europei).");
+    await alertModal("Non sono riuscito a controllare: "+failures.join(", ")+" (nessuna fonte di prezzo disponibile, nemmeno la riserva).");
   }
   if(currentRenderedTab==="finanze") render("finanze");
 }
