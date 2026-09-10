@@ -8890,12 +8890,13 @@ function normalizePriceCurrency(price, currency){
 // Fonte di riserva gratuita (Yahoo Finance, via la funzione Supabase "yahoo-quote") usata solo
 // quando Twelve Data non copre il titolo con il piano gratuito (tipico per gli ETF europei).
 // Ritorna {close, currency} come la chiamata a invest-prices, oppure null se non trova nulla.
-async function fetchFallbackQuote(symbol, micCode, exchange, expectedCurrency){
+async function fetchFallbackQuote(symbol, micCode, exchange, expectedCurrency, yahooTicker){
   try{
     let q = `yahoo-quote?symbol=${encodeURIComponent(symbol)}`;
     if(micCode) q += `&mic_code=${encodeURIComponent(micCode)}`;
     if(exchange) q += `&exchange=${encodeURIComponent(exchange)}`;
     if(expectedCurrency) q += `&currency=${encodeURIComponent(expectedCurrency)}`;
+    if(yahooTicker) q += `&ticker=${encodeURIComponent(yahooTicker)}`; // bypassa l'indovinamento: usa esattamente questo
     const { data, error } = await sb.functions.invoke(q, { method:"GET" });
     if(!error && data && data.close && !isNaN(parseFloat(data.close))){
       return { close: parseFloat(data.close), currency: data.currency };
@@ -9393,7 +9394,7 @@ async function refreshWatchlistPrices(opts){
         norm = normalizePriceCurrency(parseFloat(data.close), data.currency || w.currency);
       } else {
         // Twelve Data non copre questo titolo: proviamo la fonte di riserva (Yahoo Finance).
-        const fallback = await fetchFallbackQuote(w.symbol, w.micCode, w.exchange, w.currency);
+        const fallback = await fetchFallbackQuote(w.symbol, w.micCode, w.exchange, w.currency, w.yahooTicker);
         if(fallback) norm = normalizePriceCurrency(fallback.close, fallback.currency || w.currency);
       }
       if(norm){
@@ -9750,6 +9751,22 @@ function renderFinanzeInvestimenti(main){
         mainCol.appendChild(el("span",{class:"invest-updated"+(w.lastCheckedAt?"":" stale")},
           w.lastCheckedAt ? "controllato il "+new Date(w.lastCheckedAt).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "non ancora controllato"
         ));
+        {
+          // Se il prezzo automatico non si trova (né su Twelve Data né sulla riserva Yahoo),
+          // qui puoi indicare a mano il ticker esatto che usa Yahoo Finance per questo titolo
+          // (lo trovi cercandolo su finance.yahoo.com) — bypassa il tentativo "indovinato".
+          const tickerRow = el("div",{style:"display:flex; align-items:center; gap:6px; margin-top:3px; font-size:10.5px; color:var(--ink-soft);"});
+          tickerRow.appendChild(document.createTextNode("ticker Yahoo (se il prezzo non si trova da solo):"));
+          const tickerInp = el("input",{type:"text", class:"invest-edit-lot-input", placeholder:"es. EXUS.L", style:"width:90px; font-size:10.5px; padding:2px 6px;"});
+          tickerInp.value = w.yahooTicker || "";
+          tickerInp.addEventListener("change", ()=>{
+            w.yahooTicker = tickerInp.value.trim() || null;
+            w.notifiedAbove = false; w.notifiedBelow = false; // magari con il ticker giusto ora il prezzo cambia parecchio: ripartiamo
+            store.set(privKey("finance"), state.finance);
+          });
+          tickerRow.appendChild(tickerInp);
+          mainCol.appendChild(tickerRow);
+        }
         row.appendChild(mainCol);
         row.appendChild(el("div",{class:"invest-value"}, w.lastPrice!=null ? fmtNativeAmount(w.lastPrice, w.currency) : "—"));
 
