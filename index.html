@@ -8890,11 +8890,12 @@ function normalizePriceCurrency(price, currency){
 // Fonte di riserva gratuita (Yahoo Finance, via la funzione Supabase "yahoo-quote") usata solo
 // quando Twelve Data non copre il titolo con il piano gratuito (tipico per gli ETF europei).
 // Ritorna {close, currency} come la chiamata a invest-prices, oppure null se non trova nulla.
-async function fetchFallbackQuote(symbol, micCode, exchange){
+async function fetchFallbackQuote(symbol, micCode, exchange, expectedCurrency){
   try{
     let q = `yahoo-quote?symbol=${encodeURIComponent(symbol)}`;
     if(micCode) q += `&mic_code=${encodeURIComponent(micCode)}`;
     if(exchange) q += `&exchange=${encodeURIComponent(exchange)}`;
+    if(expectedCurrency) q += `&currency=${encodeURIComponent(expectedCurrency)}`;
     const { data, error } = await sb.functions.invoke(q, { method:"GET" });
     if(!error && data && data.close && !isNaN(parseFloat(data.close))){
       return { close: parseFloat(data.close), currency: data.currency };
@@ -9352,7 +9353,7 @@ async function refreshInvestmentPrices(){
       } else {
         // Twelve Data non copre questo titolo (tipico per gli ETF europei sul piano gratuito):
         // proviamo la fonte di riserva gratuita (Yahoo Finance) prima di segnalarlo come fallito.
-        const fallback = await fetchFallbackQuote(inv.symbol, inv.micCode, inv.exchange);
+        const fallback = await fetchFallbackQuote(inv.symbol, inv.micCode, inv.exchange, inv.currency);
         if(fallback) norm = normalizePriceCurrency(fallback.close, fallback.currency || inv.currency);
       }
       if(norm){
@@ -9392,7 +9393,7 @@ async function refreshWatchlistPrices(opts){
         norm = normalizePriceCurrency(parseFloat(data.close), data.currency || w.currency);
       } else {
         // Twelve Data non copre questo titolo: proviamo la fonte di riserva (Yahoo Finance).
-        const fallback = await fetchFallbackQuote(w.symbol, w.micCode, w.exchange);
+        const fallback = await fetchFallbackQuote(w.symbol, w.micCode, w.exchange, w.currency);
         if(fallback) norm = normalizePriceCurrency(fallback.close, fallback.currency || w.currency);
       }
       if(norm){
