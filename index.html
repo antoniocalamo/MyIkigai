@@ -8863,7 +8863,8 @@ function syncPortfolioTitoliItem(){
 }
 function renderFinanze(main){
   syncPortfolioTitoliItem();
-  main.appendChild(el("div",{class:"section-head"},[
+  const headerWrap = el("div",{class:"dash-header-sticky"});
+  headerWrap.appendChild(el("div",{class:"section-head"},[
     el("h1",{},"Finanze")
   ]));
   const nav = el("div",{class:"finance-subnav"});
@@ -8872,8 +8873,9 @@ function renderFinanze(main){
     btn.addEventListener("click", ()=>{ financeSubTab=key; render("finanze"); });
     nav.appendChild(btn);
   });
-  main.appendChild(scrollHintIcon());
-  main.appendChild(nav);
+  headerWrap.appendChild(scrollHintIcon());
+  headerWrap.appendChild(nav);
+  main.appendChild(headerWrap);
   if(financeSubTab==="investimenti") renderFinanzeInvestimenti(main);
   else if(financeSubTab==="flussi") renderFinanzeCashflow(main);
   else renderFinanzeDashboard(main);
