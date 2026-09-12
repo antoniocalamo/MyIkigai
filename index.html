@@ -9377,9 +9377,11 @@ async function refreshInvestmentPrices(opts){
       if(!error && data && data.close && !isNaN(parseFloat(data.close))){
         norm = normalizePriceCurrency(parseFloat(data.close), data.currency || inv.currency);
         source = "twelvedata";
-      } else {
+      } else if(inv.yahooTicker){
         // Twelve Data non copre questo titolo (tipico per gli ETF europei sul piano gratuito):
-        // proviamo la fonte di riserva gratuita (Yahoo Finance) prima di segnalarlo come fallito.
+        // proviamo la fonte di riserva gratuita (Yahoo Finance) — solo se hai impostato TU il
+        // ticker esatto. Niente indovinamento automatico: un titolo omonimo ma sbagliato su
+        // un'altra borsa darebbe un prezzo plausibile ma falso, peggio di nessun prezzo.
         const fallback = await fetchFallbackQuote(inv.symbol, inv.micCode, inv.exchange, inv.currency, inv.yahooTicker);
         if(fallback){
           norm = normalizePriceCurrency(fallback.close, fallback.currency || inv.currency);
@@ -9396,7 +9398,8 @@ async function refreshInvestmentPrices(opts){
         inv.priceSourceTicker = sourceTicker; // il ticker Yahoo effettivamente usato, se diverso dal simbolo
         checkPriceThreshold(inv);
       } else {
-        failures.push(inv.symbol + (data&&data.message ? " ("+data.message+")" : ""));
+        const reason = data&&data.message ? data.message : (inv.yahooTicker ? "non trovato nemmeno su Yahoo" : "imposta un ticker Yahoo sulla riga per usare la riserva");
+        failures.push(inv.symbol + " (" + reason + ")");
       }
     }catch(e){ failures.push(inv.symbol); }
   }
