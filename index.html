@@ -8928,7 +8928,7 @@ async function fetchFallbackQuote(symbol, micCode, exchange, expectedCurrency, y
     if(yahooTicker) q += `&ticker=${encodeURIComponent(yahooTicker)}`; // bypassa l'indovinamento: usa esattamente questo
     const { data, error } = await sb.functions.invoke(q, { method:"GET" });
     if(!error && data && data.close && !isNaN(parseFloat(data.close))){
-      return { close: parseFloat(data.close), currency: data.currency };
+      return { close: parseFloat(data.close), currency: data.currency, ticker: data.ticker || yahooTicker || null };
     }
   }catch(e){ /* nessuna riserva disponibile: chi chiama resta con l'errore originale */ }
   return null;
@@ -9354,8 +9354,7 @@ function openManualPriceUpdateModal(inv){
 // Supabase, fuori da questo file.
 async function refreshInvestmentPrices(opts){
   const silent = !!(opts && opts.silent);
-  const onlyAlerts = !!(opts && opts.onlyAlerts);
-  const invs = (state.finance.investments || []).filter(inv=> !onlyAlerts || inv.alertAbove!=null || inv.alertBelow!=null);
+  const invs = state.finance.investments || [];
   const fxCache = {};
   async function getFxRate(currency){
     if(!currency || currency==="EUR") return 1;
@@ -9374,20 +9373,27 @@ async function refreshInvestmentPrices(opts){
       if(inv.micCode) q += `&mic_code=${encodeURIComponent(inv.micCode)}`;
       else if(inv.exchange) q += `&exchange=${encodeURIComponent(inv.exchange)}`;
       const { data, error } = await sb.functions.invoke(q, { method:"GET" });
-      let norm = null;
+      let norm = null, source = null, sourceTicker = null;
       if(!error && data && data.close && !isNaN(parseFloat(data.close))){
         norm = normalizePriceCurrency(parseFloat(data.close), data.currency || inv.currency);
+        source = "twelvedata";
       } else {
         // Twelve Data non copre questo titolo (tipico per gli ETF europei sul piano gratuito):
         // proviamo la fonte di riserva gratuita (Yahoo Finance) prima di segnalarlo come fallito.
         const fallback = await fetchFallbackQuote(inv.symbol, inv.micCode, inv.exchange, inv.currency, inv.yahooTicker);
-        if(fallback) norm = normalizePriceCurrency(fallback.close, fallback.currency || inv.currency);
+        if(fallback){
+          norm = normalizePriceCurrency(fallback.close, fallback.currency || inv.currency);
+          source = "yahoo";
+          sourceTicker = fallback.ticker || null;
+        }
       }
       if(norm){
         inv.lastPrice = norm.price;
         inv.currency = norm.currency;
         inv.lastPriceAt = new Date().toISOString();
         inv.fxRate = await getFxRate(norm.currency);
+        inv.priceSource = source; // "twelvedata" o "yahoo" — per poter verificare da dove viene il dato
+        inv.priceSourceTicker = sourceTicker; // il ticker Yahoo effettivamente usato, se diverso dal simbolo
         checkPriceThreshold(inv);
       } else {
         failures.push(inv.symbol + (data&&data.message ? " ("+data.message+")" : ""));
@@ -9433,10 +9439,9 @@ function notifyBrowser(title, body){
 }
 
 // Avviato una volta all'apertura della app: controlla subito, poi ogni ora, indipendentemente
-// dalla scheda su cui ti trovi (così l'avviso può arrivare anche se non sei su Finanze). Parte
-// solo se c'è almeno un titolo con una soglia di prezzo impostata, e tocca SOLO quei titoli
-// (onlyAlerts:true) — il resto del portafoglio continua ad aggiornarsi solo quando lo fai tu a
-// mano con "↻ Aggiorna prezzi", esattamente come prima di avere impostato una soglia.
+// dalla scheda su cui ti trovi (così un avviso di prezzo può arrivare anche se non sei su
+// Finanze). Aggiorna TUTTO il portafoglio (non solo i titoli con una soglia) — controllato
+// dallo stesso interruttore "aggiornamento automatico prezzi" che già usa il pulsante manuale.
 let priceAlertMonitorStarted = false;
 function hasAnyPriceAlert(){
   return (state.finance.investments||[]).some(inv=>inv.alertAbove!=null || inv.alertBelow!=null);
@@ -9444,9 +9449,9 @@ function hasAnyPriceAlert(){
 function initPriceAlertMonitor(){
   if(priceAlertMonitorStarted) return; // evita intervalli duplicati su un nuovo login nella stessa sessione del browser
   priceAlertMonitorStarted = true;
-  if(hasAnyPriceAlert()) refreshInvestmentPrices({silent:true, onlyAlerts:true});
+  if(state.finance.investAutoPriceEnabled) refreshInvestmentPrices({silent:true});
   setInterval(()=>{
-    if(hasAnyPriceAlert()) refreshInvestmentPrices({silent:true, onlyAlerts:true});
+    if(state.finance.investAutoPriceEnabled) refreshInvestmentPrices({silent:true});
   }, 60*60*1000);
 }
 
@@ -9618,7 +9623,15 @@ function renderFinanzeInvestimenti(main){
     mainCol.appendChild(el("span",{class:"invest-name"}, inv.name));
     {
       const isStale = inv.lastPrice==null;
-      const updText = isStale ? "mai aggiornato — prezzo di carico" : "prezzo agg. il "+new Date(inv.lastPriceAt).toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit"});
+      let updText = isStale ? "mai aggiornato — prezzo di carico" : "prezzo agg. il "+new Date(inv.lastPriceAt).toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit"});
+      // Fonte del prezzo (Twelve Data o la riserva Yahoo, con il ticker che ha effettivamente
+      // trovato) — utile per verificare che l'indovinamento automatico non abbia agganciato un
+      // titolo omonimo ma sbagliato su un altro mercato.
+      if(!isStale && inv.priceSource==="yahoo"){
+        updText += " · Yahoo"+(inv.priceSourceTicker?" ("+inv.priceSourceTicker+")":"");
+      } else if(!isStale && inv.priceSource==="twelvedata"){
+        updText += " · Twelve Data";
+      }
       mainCol.appendChild(el("span",{class:"invest-updated"+(isStale?" stale":"")}, updText));
     }
     {
@@ -9724,7 +9737,7 @@ function renderFinanzeInvestimenti(main){
         refreshInvestmentPrices();
       });
       priceToggleRow.appendChild(refreshBtn);
-      const disableLink = el("span",{class:"invest-manual-link", style:"margin:0;"}, "Disattiva aggiornamento automatico");
+      const disableLink = el("span",{class:"invest-manual-link", style:"margin:0;"}, "Disattiva aggiornamento automatico (ogni ora)");
       disableLink.addEventListener("click", ()=>{
         state.finance.investAutoPriceEnabled = false;
         store.setQuiet(privKey("finance"), state.finance); render("finanze");
@@ -9732,7 +9745,7 @@ function renderFinanzeInvestimenti(main){
       priceToggleRow.appendChild(disableLink);
     } else {
       const enableLink = el("span",{class:"invest-manual-link", style:"margin:0;"},
-        "Attiva aggiornamento automatico prezzi (richiede piano a pagamento Twelve Data) →");
+        "Attiva aggiornamento automatico prezzi (ogni ora, in background) →");
       enableLink.addEventListener("click", ()=>{
         state.finance.investAutoPriceEnabled = true;
         store.setQuiet(privKey("finance"), state.finance); render("finanze");
