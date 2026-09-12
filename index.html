@@ -9354,7 +9354,8 @@ function openManualPriceUpdateModal(inv){
 // Supabase, fuori da questo file.
 async function refreshInvestmentPrices(opts){
   const silent = !!(opts && opts.silent);
-  const invs = state.finance.investments || [];
+  const onlyAlerts = !!(opts && opts.onlyAlerts);
+  const invs = (state.finance.investments || []).filter(inv=> !onlyAlerts || inv.alertAbove!=null || inv.alertBelow!=null);
   const fxCache = {};
   async function getFxRate(currency){
     if(!currency || currency==="EUR") return 1;
@@ -9433,7 +9434,9 @@ function notifyBrowser(title, body){
 
 // Avviato una volta all'apertura della app: controlla subito, poi ogni ora, indipendentemente
 // dalla scheda su cui ti trovi (così l'avviso può arrivare anche se non sei su Finanze). Parte
-// solo se c'è almeno un titolo con una soglia di prezzo impostata.
+// solo se c'è almeno un titolo con una soglia di prezzo impostata, e tocca SOLO quei titoli
+// (onlyAlerts:true) — il resto del portafoglio continua ad aggiornarsi solo quando lo fai tu a
+// mano con "↻ Aggiorna prezzi", esattamente come prima di avere impostato una soglia.
 let priceAlertMonitorStarted = false;
 function hasAnyPriceAlert(){
   return (state.finance.investments||[]).some(inv=>inv.alertAbove!=null || inv.alertBelow!=null);
@@ -9441,9 +9444,9 @@ function hasAnyPriceAlert(){
 function initPriceAlertMonitor(){
   if(priceAlertMonitorStarted) return; // evita intervalli duplicati su un nuovo login nella stessa sessione del browser
   priceAlertMonitorStarted = true;
-  if(hasAnyPriceAlert()) refreshInvestmentPrices({silent:true});
+  if(hasAnyPriceAlert()) refreshInvestmentPrices({silent:true, onlyAlerts:true});
   setInterval(()=>{
-    if(hasAnyPriceAlert()) refreshInvestmentPrices({silent:true});
+    if(hasAnyPriceAlert()) refreshInvestmentPrices({silent:true, onlyAlerts:true});
   }, 60*60*1000);
 }
 
