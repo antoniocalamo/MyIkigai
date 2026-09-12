@@ -1425,6 +1425,8 @@ input.cashflow-item-occ-input{
   font-size:10.5px; font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--forest);
   background:rgba(47,122,61,0.12); padding:2px 8px; border-radius:20px;
 }
+.invest-feed-badge{font-size:11px; cursor:default; opacity:.85;}
+.invest-feed-badge.manual{filter:grayscale(.3);}
 .invest-name{font-size:11.5px; color:var(--ink-soft);}
 .invest-updated{font-size:10px; color:var(--ink-soft); font-style:italic; margin-top:1px;}
 .invest-updated.stale{color:#B3352A;}
@@ -9621,6 +9623,17 @@ function renderFinanzeInvestimenti(main){
       topLine.appendChild(el("span",{class:"invest-symbol-chip"}, inv.symbol + (inv.manual?" · manuale":"")));
     } else {
       topLine.appendChild(el("span",{class:"invest-symbol"}, inv.symbol + (inv.manual?" · manuale":"")));
+    }
+    {
+      // Icona ben visibile: il prezzo di questa riga viene aggiornato da solo (Twelve Data o
+      // Yahoo) oppure va aggiornato a mano — anche un titolo non "manuale" può finire in questo
+      // caso se nessuna delle due fonti automatiche lo copre e il prezzo è stato messo con 💰.
+      const isAutoFed = !inv.manual && (inv.priceSource==="twelvedata" || inv.priceSource==="yahoo");
+      const feedBadge = el("span",{
+        class:"invest-feed-badge"+(isAutoFed?" auto":" manual"),
+        title: isAutoFed ? "Prezzo aggiornato automaticamente ("+(inv.priceSource==="yahoo"?"Yahoo":"Twelve Data")+")" : "Prezzo aggiornato manualmente (nessuna fonte automatica disponibile per questo titolo)"
+      }, isAutoFed ? "🔄" : "💰");
+      topLine.appendChild(feedBadge);
     }
     mainCol.appendChild(topLine);
     mainCol.appendChild(el("span",{class:"invest-name"}, inv.name));
