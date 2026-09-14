@@ -1426,6 +1426,8 @@ input.cashflow-item-occ-input{
   background:rgba(47,122,61,0.12); padding:2px 8px; border-radius:20px;
 }
 .invest-feed-badge{font-size:11px; cursor:default; opacity:.85;}
+.invest-feed-badge.clickable{cursor:pointer;}
+.invest-feed-badge.clickable:hover{opacity:1;}
 .invest-feed-badge.manual{filter:grayscale(.3);}
 .invest-name{font-size:11.5px; color:var(--ink-soft);}
 .invest-updated{font-size:10px; color:var(--ink-soft); font-style:italic; margin-top:1px;}
@@ -9356,7 +9358,7 @@ function openManualPriceUpdateModal(inv){
 // Supabase, fuori da questo file.
 async function refreshInvestmentPrices(opts){
   const silent = !!(opts && opts.silent);
-  const invs = state.finance.investments || [];
+  const invs = (opts && opts.only) ? [opts.only] : (state.finance.investments || []);
   const fxCache = {};
   async function getFxRate(currency){
     if(!currency || currency==="EUR") return 1;
@@ -9630,9 +9632,16 @@ function renderFinanzeInvestimenti(main){
       // caso se nessuna delle due fonti automatiche lo copre e il prezzo è stato messo con 💰.
       const isAutoFed = !inv.manual && (inv.priceSource==="twelvedata" || inv.priceSource==="yahoo");
       const feedBadge = el("span",{
-        class:"invest-feed-badge"+(isAutoFed?" auto":" manual"),
-        title: isAutoFed ? "Prezzo aggiornato automaticamente ("+(inv.priceSource==="yahoo"?"Yahoo":"Twelve Data")+")" : "Prezzo aggiornato manualmente (nessuna fonte automatica disponibile per questo titolo)"
+        class:"invest-feed-badge"+(isAutoFed?" auto":" manual")+(inv.manual?"":" clickable"),
+        title: (isAutoFed ? "Prezzo aggiornato automaticamente ("+(inv.priceSource==="yahoo"?"Yahoo":"Twelve Data")+")" : "Prezzo aggiornato manualmente (nessuna fonte automatica disponibile per questo titolo)")
+          + (inv.manual ? "" : " — clicca per aggiornare ora")
       }, isAutoFed ? "🔄" : "💰");
+      if(!inv.manual){
+        feedBadge.addEventListener("click", async ()=>{
+          feedBadge.textContent = "…";
+          await refreshInvestmentPrices({only: inv});
+        });
+      }
       topLine.appendChild(feedBadge);
     }
     mainCol.appendChild(topLine);
