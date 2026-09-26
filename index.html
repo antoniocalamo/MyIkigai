@@ -861,6 +861,7 @@ textarea{resize:vertical;}
 .check-item .del{margin-top:2px;}
 .pack-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 20px;}
 @media (max-width:1100px){ .pack-grid{grid-template-columns:1fr;} }
+.pack-grid.drag-over-grid{box-shadow:0 0 0 2px var(--forest) inset; border-radius:8px;}
 input.pack-num{
   width:24px; flex-shrink:0; border:1px solid var(--line); border-radius:5px;
   padding:2px 3px; font-size:11px; text-align:center; background:var(--card); margin-top:1px;
@@ -3508,6 +3509,49 @@ function attachDayCardDrop(dayCard, day){
   // Marcatore usato da attachTaskDrag per riconoscere "hai rilasciato sul contenitore
   // del giorno" quando non sei sopra una riga specifica (es. spazio vuoto sotto le task).
   dayCard.dataset.dayDrop = day;
+}
+// Trascina una voce di checklist (renderPackItem) da una categoria a un'altra, non solo
+// all'interno della stessa — stesso schema di attachTaskDrag per i task della Home: cerca il
+// bersaglio in tutto il documento (non solo tra i "fratelli" nello stesso contenitore), sia che
+// sia un'altra voce precisa, sia lo spazio vuoto di una categoria (in quel caso va in fondo).
+function attachChecklistItemDrag(handle, row, catIdx, itemIdx, categories, onSave){
+  row.dataset.packDrag = catIdx+"|"+itemIdx;
+  bindPointerDragSource(handle, row, (e)=>{
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    document.querySelectorAll(".drag-over, .drag-over-grid").forEach(el=>el.classList.remove("drag-over","drag-over-grid"));
+    const rowTarget = under && under.closest("[data-pack-drag]");
+    const gridTarget = under && under.closest(".pack-grid");
+    if(rowTarget && rowTarget!==row) rowTarget.classList.add("drag-over");
+    else if(gridTarget) gridTarget.classList.add("drag-over-grid");
+  }, (e)=>{
+    document.querySelectorAll(".drag-over, .drag-over-grid").forEach(el=>el.classList.remove("drag-over","drag-over-grid"));
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const sourceCat = categories[catIdx];
+    if(!sourceCat) return;
+    const rowTarget = under && under.closest("[data-pack-drag]");
+    if(rowTarget && rowTarget!==row){
+      const [tCatIdx, tItemIdx] = rowTarget.dataset.packDrag.split("|").map(Number);
+      if(tCatIdx===catIdx && tItemIdx===itemIdx) return;
+      const [moved] = sourceCat.items.splice(itemIdx,1);
+      if(!moved) return;
+      const targetCat = categories[tCatIdx];
+      if(!targetCat){ sourceCat.items.splice(itemIdx,0,moved); return; }
+      targetCat.items.splice(tItemIdx,0,moved);
+      onSave();
+      return;
+    }
+    const gridTarget = under && under.closest(".pack-grid");
+    if(gridTarget){
+      const tCatIdx = Number(gridTarget.dataset.catIdx);
+      if(isNaN(tCatIdx)) return;
+      const [moved] = sourceCat.items.splice(itemIdx,1);
+      if(!moved) return;
+      const targetCat = categories[tCatIdx];
+      if(!targetCat){ sourceCat.items.splice(itemIdx,0,moved); return; }
+      targetCat.items.push(moved);
+      onSave();
+    }
+  });
 }
 function openModal(contentBuilderFn, onClose){
   const overlay = el("div",{class:"modal-overlay"});
@@ -6666,7 +6710,7 @@ function renderFreeTextEditor(container, item, onSave){
   container.appendChild(editor);
 }
 
-function renderPackItem(item, i, arr, onSave, idPrefix){
+function renderPackItem(item, i, arr, onSave, idPrefix, catIdx, categories){
   if(!item.id) item.id = idPrefix+"-"+i+"-"+Math.random().toString(36).slice(2,7);
   const row = el("div",{class:"check-item pack-item"+(item.done?" done":"")+(item.take===false?" not-needed":"")});
   const grip = el("span",{class:"drag-grip", html:ICON_GRIP});
@@ -6696,7 +6740,8 @@ function renderPackItem(item, i, arr, onSave, idPrefix){
     arr.splice(i,1); onSave();
   });
   row.appendChild(grip); row.appendChild(numInp); row.appendChild(cb); row.appendChild(takeBtn); row.appendChild(txt); row.appendChild(del);
-  attachRowDrag(grip, row, i, arr, onSave);
+  if(categories) attachChecklistItemDrag(grip, row, catIdx, i, categories, onSave);
+  else attachRowDrag(grip, row, i, arr, onSave);
   row.addEventListener("click", (e)=>{
     if(e.target===cb || e.target===txt || e.target===numInp || e.target===del || e.target===takeBtn || e.target===grip) return;
     if(grip.contains(e.target) || takeBtn.contains(e.target) || del.contains(e.target)) return;
@@ -6762,8 +6807,9 @@ function renderTripDetail(detail, trip){
     head.appendChild(titleInput); head.appendChild(selAllWrap); head.appendChild(selAllTakeWrap); head.appendChild(delCatBtn);
     block.appendChild(head);
     const grid = el("div",{class:"pack-grid"});
+    grid.dataset.catIdx = ci;
     cat.items.forEach((it,i)=>{
-      grid.appendChild(renderPackItem(it, i, cat.items, save, "t"+trip.id+ci));
+      grid.appendChild(renderPackItem(it, i, cat.items, save, "t"+trip.id+ci, ci, trip.data));
     });
     block.appendChild(grid);
     const addLine = el("div",{class:"add-line"});
@@ -10257,8 +10303,9 @@ function renderCategorizedChecklist(detail, board, save, idPrefix, tabName){
     head.appendChild(delCatBtn);
     block.appendChild(head);
     const grid = el("div",{class:"pack-grid"});
+    grid.dataset.catIdx = ci;
     cat.items.forEach((it,i)=>{
-      grid.appendChild(renderPackItem(it, i, cat.items, save, idPrefix+ci));
+      grid.appendChild(renderPackItem(it, i, cat.items, save, idPrefix+ci, ci, board.data));
     });
     block.appendChild(grid);
     const addLine = el("div",{class:"add-line"});
