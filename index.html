@@ -9490,7 +9490,10 @@ function notifyBrowser(title, body){
   if(typeof Notification==="undefined" || Notification.permission!=="granted") return;
   try{
     const iconEl = document.getElementById("favicon-link");
-    new Notification(title, { body, icon: iconEl ? iconEl.href : undefined });
+    // requireInteraction: resta visibile finché non la chiudi tu (premendo la X), invece di
+    // sparire da sola dopo pochi secondi — non tutti i browser lo rispettano (Chrome/Edge sì,
+    // Firefox la nasconde comunque, su mobile varia).
+    new Notification(title, { body, icon: iconEl ? iconEl.href : undefined, requireInteraction: true });
   }catch(e){ /* alcuni browser/contesti (es. iOS Safari) non supportano le notifiche: nessun blocco */ }
 }
 
