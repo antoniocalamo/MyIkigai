@@ -2628,8 +2628,13 @@ let financeChartHiddenSeries = {};
 function parseItDate(str){
   const parts = String(str||"").split("/");
   if(parts.length!==3) return null;
-  const d = parseInt(parts[0],10), m = parseInt(parts[1],10), y = parseInt(parts[2],10);
+  const d = parseInt(parts[0],10), m = parseInt(parts[1],10);
+  let y = parseInt(parts[2],10);
   if(!d||!m||!y) return null;
+  // Un anno scritto a 2 cifre (es. "26") va interpretato come 2026, non 1926: il costruttore
+  // Date() di JavaScript tratta di default gli anni 0-99 come "1900+anno", comportamento
+  // storico del linguaggio che qui romperebbe l'ordine cronologico degli ordini.
+  if(y<100) y += 2000;
   return new Date(y, m-1, d);
 }
 // Converte un numero seriale Excel (es. 44197) in stringa gg/mm/aaaa, usando la formula
