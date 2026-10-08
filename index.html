@@ -6084,17 +6084,30 @@ async function loadOrtoWeather(container){
   const loc = state.ortoWeatherLocation || DEFAULTS.weatherLocation;
   const lat = loc.lat, lon = loc.lon;
   try{
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation&daily=precipitation_sum&timezone=auto`);
+    // past_days=7: non basta guardare la pioggia di "oggi", perché questa funzione gira solo
+    // quando si apre la scheda Orto — se per qualche giorno non viene aperta (o si apre in un
+    // momento in cui oggi non piove), la pioggia dei giorni precedenti non verrebbe mai notata.
+    // Guardando anche l'ultima settimana si recupera la pioggia persa nel frattempo.
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation&daily=precipitation_sum&timezone=auto&past_days=7`);
     const data = await res.json();
     const temp = Math.round(data.current.temperature_2m);
-    const precipToday = data.daily.precipitation_sum[0];
     const today = new Date().toISOString().slice(0,10);
-    if(precipToday > 0.5 && state.orto.lastWatered !== today){
-      // Segna "ultima annaffiata" come oggi, ma senza forzare un secondo ridisegno completo
-      // della scheda: era un effetto collaterale nascosto che poteva scattare in mezzo a
-      // un'altra interazione dell'utente (es. un popover appena aperto). Il campo "Ultima
-      // annaffiata/pioggia" nella toolbar si aggiornerà al prossimo ridisegno naturale.
-      state.orto.lastWatered = today;
+    const days = data.daily.time || [];
+    const precs = data.daily.precipitation_sum || [];
+    const todayIdx = days.indexOf(today);
+    const precipToday = todayIdx>=0 ? precs[todayIdx] : (precs[precs.length-1]||0);
+    // tra i giorni passati fino a oggi (mai quelli futuri: sarebbe pioggia solo prevista, non
+    // ancora caduta) trova il più recente con pioggia significativa
+    let latestRainDay = null;
+    days.forEach((d, i)=>{
+      if(d<=today && (precs[i]||0)>0.5 && (!latestRainDay || d>latestRainDay)) latestRainDay = d;
+    });
+    if(latestRainDay && latestRainDay > (state.orto.lastWatered||"")){
+      // Segna "ultima annaffiata" come il giorno di pioggia più recente, ma senza forzare un
+      // secondo ridisegno completo della scheda: era un effetto collaterale nascosto che poteva
+      // scattare in mezzo a un'altra interazione dell'utente (es. un popover appena aperto). Il
+      // campo "Ultima annaffiata/pioggia" nella toolbar si aggiornerà al prossimo ridisegno naturale.
+      state.orto.lastWatered = latestRainDay;
       store.set("orto", state.orto);
     }
     container.innerHTML = "";
