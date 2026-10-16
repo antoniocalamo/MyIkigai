@@ -4445,6 +4445,19 @@ function renderNotifBadge(){
   badge.textContent = n>9 ? "9+" : String(n);
   badge.classList.toggle("visible", n>0);
 }
+// Aggiunge una notifica al pannello "campanella" (stessa forma usata dall'email promemoria
+// Finanze lato server): tiene solo le ultime 50, aggiorna subito il pallino. "link" è il nome
+// scheda (es. "finanze") da aprire al click sulla notifica, opzionale.
+function addNotification(title, text, link){
+  if(!state.notifications) state.notifications = [];
+  state.notifications.unshift({
+    id: "n" + Date.now() + Math.random().toString(36).slice(2,6),
+    title, text, date: new Date().toISOString(), read:false, link: link||null
+  });
+  state.notifications = state.notifications.slice(0,50);
+  store.setQuiet(privKey("notifications"), state.notifications);
+  renderNotifBadge();
+}
 // Pannello notifiche: tendina ancorata alla campanella (come nei social), non più un modale.
 // Raggruppa "Da leggere"/"Lette", permette di segnare singolarmente (o tutte insieme) come lette,
 // eliminare una notifica, e — se la notifica porta un link a una scheda (es. il promemoria
@@ -9672,7 +9685,10 @@ async function refreshInvestmentPrices(opts){
 function checkPriceThreshold(inv){
   if(inv.alertAbove!=null){
     if(inv.lastPrice>=inv.alertAbove && !inv.notifiedAbove){
-      notifyBrowser(inv.symbol+" ha superato "+fmtNativeAmount(inv.alertAbove, inv.currency), inv.name+" ora è a "+fmtNativeAmount(inv.lastPrice, inv.currency));
+      const title = inv.symbol+" ha superato "+fmtNativeAmount(inv.alertAbove, inv.currency);
+      const text = inv.name+" ora è a "+fmtNativeAmount(inv.lastPrice, inv.currency);
+      notifyBrowser(title, text);
+      addNotification(title, text, "finanze");
       inv.notifiedAbove = true;
     } else if(inv.lastPrice<inv.alertAbove){
       inv.notifiedAbove = false;
@@ -9680,7 +9696,10 @@ function checkPriceThreshold(inv){
   }
   if(inv.alertBelow!=null){
     if(inv.lastPrice<=inv.alertBelow && !inv.notifiedBelow){
-      notifyBrowser(inv.symbol+" è sceso sotto "+fmtNativeAmount(inv.alertBelow, inv.currency), inv.name+" ora è a "+fmtNativeAmount(inv.lastPrice, inv.currency));
+      const title = inv.symbol+" è sceso sotto "+fmtNativeAmount(inv.alertBelow, inv.currency);
+      const text = inv.name+" ora è a "+fmtNativeAmount(inv.lastPrice, inv.currency);
+      notifyBrowser(title, text);
+      addNotification(title, text, "finanze");
       inv.notifiedBelow = true;
     } else if(inv.lastPrice>inv.alertBelow){
       inv.notifiedBelow = false;
