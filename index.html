@@ -1736,7 +1736,11 @@ input.cashflow-item-occ-input{
 .modal-actions{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end; margin-top:20px;}
 .modal-confirm-msg{font-size:14px; color:var(--ink); line-height:1.5; white-space:pre-line;}
 
-/* ---- Pannello notifiche ---- */
+/* ---- Pannello notifiche (tendina ancorata alla campanella) ---- */
+.notif-dropdown-menu{width:340px; max-width:calc(100vw - 32px); padding:14px 14px 10px;}
+.notif-dropdown-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px;}
+.notif-dropdown-head h4{margin:0; font-size:14px; color:var(--ink);}
+.notif-dropdown-menu .notif-list{max-height:380px;}
 .notif-list{display:flex; flex-direction:column; gap:6px; max-height:55vh; overflow-y:auto; margin:6px 0;}
 .notif-row{
   display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:10px;
@@ -1913,7 +1917,7 @@ input.cashflow-item-occ-input{
   .user-email{display:block; order:1; flex:1 1 100%; font-size:13px; text-align:right;}
   .zoom-controls{display:none;}
   .theme-select{order:2;}
-  .notif-bell-btn{order:3;}
+  #notif-dropdown-wrap{order:3;}
   .account-settings-btn{order:3;}
   #logout-btn{order:4;}
   main{margin:0; padding:18px 16px calc(88px + env(safe-area-inset-bottom)) 16px;}
@@ -2070,7 +2074,10 @@ input.cashflow-item-occ-input{
       </div>
       <div class="topbar-row topbar-row-account">
         <div id="user-email" class="user-email"></div>
-        <span id="notif-bell-btn" class="notif-bell-btn" title="Notifiche"><span id="notif-badge" class="notif-badge"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+        <div id="notif-dropdown-wrap" class="dropdown-wrap">
+          <span id="notif-bell-btn" class="notif-bell-btn" title="Notifiche"><span id="notif-badge" class="notif-badge"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+          <div id="notif-dropdown-menu" class="dropdown-menu notif-dropdown-menu"></div>
+        </div>
         <span id="account-settings-btn" class="account-settings-btn" title="Impostazioni account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></span>
         <button id="logout-btn" class="btn ghost small">Esci</button>
       </div>
@@ -3459,7 +3466,7 @@ document.getElementById("logout-btn").addEventListener("click", async ()=>{
   }
 });
 document.getElementById("account-settings-btn").addEventListener("click", openAccountSettingsModal);
-document.getElementById("notif-bell-btn").addEventListener("click", openNotificationsModal);
+initNotificationsDropdown();
 
 /* ---------------- helpers ---------------- */
 // --- Drag & drop per riordino, basato su Pointer Events -------------------------------
@@ -4438,95 +4445,107 @@ function renderNotifBadge(){
   badge.textContent = n>9 ? "9+" : String(n);
   badge.classList.toggle("visible", n>0);
 }
-// Pannello notifiche: raggruppa "Da leggere"/"Lette", permette di segnare singolarmente (o tutte
-// insieme) come lette, eliminare una notifica, e — se la notifica porta un link a una scheda
-// (es. il promemoria Finanze) — di aprirla al click, aggiornando anche la scheda evidenziata
-// nella barra laterale (stesso meccanismo usato da Annulla/Ripristina per la navigazione).
-function openNotificationsModal(){
-  openModal((modal, close)=>{
-    modal.appendChild(el("h3",{},"Notifiche"));
-    const list = el("div",{class:"notif-list"});
-    const markAllBtn = el("button",{class:"btn ghost"},"Segna tutte come lette");
-    function redraw(){
-      list.innerHTML = "";
-      const all = (state.notifications||[]).slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
-      markAllBtn.style.display = all.some(n=>!n.read) ? "" : "none";
-      if(!all.length){
-        list.appendChild(el("div",{class:"notif-empty"},"Nessuna notifica."));
-        return;
-      }
-      function addRow(n){
-        const row = el("div",{class:"notif-row"+(n.read?"":" unread")});
-        row.appendChild(el("span",{class:"notif-row-dot"}));
-        const body = el("div",{class:"notif-row-body"});
-        body.appendChild(el("div",{class:"notif-row-title"}, n.title||"Notifica"));
-        if(n.text) body.appendChild(el("div",{class:"notif-row-text"}, n.text));
-        body.appendChild(el("div",{class:"notif-row-date"}, fmtDateShort(n.date)));
-        row.appendChild(body);
-        const rowActions = el("div",{class:"notif-row-actions"});
-        const toggle = el("span",{class:"notif-row-toggle"}, n.read?"Segna da leggere":"Segna come letta");
-        toggle.addEventListener("click",(e)=>{
-          e.stopPropagation();
-          n.read = !n.read;
+// Pannello notifiche: tendina ancorata alla campanella (come nei social), non più un modale.
+// Raggruppa "Da leggere"/"Lette", permette di segnare singolarmente (o tutte insieme) come lette,
+// eliminare una notifica, e — se la notifica porta un link a una scheda (es. il promemoria
+// Finanze) — di aprirla al click, aggiornando anche la scheda evidenziata nella barra laterale
+// (stesso meccanismo usato da Annulla/Ripristina per la navigazione).
+function initNotificationsDropdown(){
+  const wrap = document.getElementById("notif-dropdown-wrap");
+  const bellBtn = document.getElementById("notif-bell-btn");
+  const menu = document.getElementById("notif-dropdown-menu");
+  if(!wrap || !bellBtn || !menu) return;
+
+  function closeMenu(){ menu.classList.remove("open"); document.removeEventListener("click", onDocClick); }
+  // Ignora i click dentro un modale (es. la conferma "Eliminare questa notifica?"): sta sopra la
+  // tendina ma vive fuori dal wrap, altrimenti confermare l'eliminazione chiuderebbe la tendina.
+  function onDocClick(e){ if(!wrap.contains(e.target) && !e.target.closest(".modal-overlay")) closeMenu(); }
+  bellBtn.addEventListener("click", (e)=>{
+    e.stopPropagation();
+    if(menu.classList.contains("open")){ closeMenu(); }
+    else { redraw(); menu.classList.add("open"); document.addEventListener("click", onDocClick); }
+  });
+
+  const head = el("div",{class:"notif-dropdown-head"});
+  head.appendChild(el("h4",{},"Notifiche"));
+  const markAllBtn = el("span",{class:"notif-row-toggle"},"Segna tutte come lette");
+  head.appendChild(markAllBtn);
+  menu.appendChild(head);
+  const list = el("div",{class:"notif-list"});
+  menu.appendChild(list);
+
+  function redraw(){
+    list.innerHTML = "";
+    const all = (state.notifications||[]).slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+    markAllBtn.style.display = all.some(n=>!n.read) ? "" : "none";
+    if(!all.length){
+      list.appendChild(el("div",{class:"notif-empty"},"Nessuna notifica."));
+      return;
+    }
+    function addRow(n){
+      const row = el("div",{class:"notif-row"+(n.read?"":" unread")});
+      row.appendChild(el("span",{class:"notif-row-dot"}));
+      const body = el("div",{class:"notif-row-body"});
+      body.appendChild(el("div",{class:"notif-row-title"}, n.title||"Notifica"));
+      if(n.text) body.appendChild(el("div",{class:"notif-row-text"}, n.text));
+      body.appendChild(el("div",{class:"notif-row-date"}, fmtDateShort(n.date)));
+      row.appendChild(body);
+      const rowActions = el("div",{class:"notif-row-actions"});
+      const toggle = el("span",{class:"notif-row-toggle"}, n.read?"Segna da leggere":"Segna come letta");
+      toggle.addEventListener("click",(e)=>{
+        e.stopPropagation();
+        n.read = !n.read;
+        store.setQuiet(privKey("notifications"), state.notifications);
+        renderNotifBadge();
+        redraw();
+      });
+      rowActions.appendChild(toggle);
+      const del = el("span",{class:"del", html:"✕", title:"Elimina notifica"});
+      del.addEventListener("click", async (e)=>{
+        e.stopPropagation();
+        if(await confirmModal("Eliminare questa notifica?", {danger:true, okLabel:"Elimina"})){
+          state.notifications = state.notifications.filter(x=>x.id!==n.id);
+          store.set(privKey("notifications"), state.notifications);
+          renderNotifBadge();
+          redraw();
+        }
+      });
+      rowActions.appendChild(del);
+      row.appendChild(rowActions);
+      row.addEventListener("click", ()=>{
+        if(!n.read){
+          n.read = true;
           store.setQuiet(privKey("notifications"), state.notifications);
           renderNotifBadge();
           redraw();
-        });
-        rowActions.appendChild(toggle);
-        const del = el("span",{class:"del", html:"✕", title:"Elimina notifica"});
-        del.addEventListener("click", async (e)=>{
-          e.stopPropagation();
-          if(await confirmModal("Eliminare questa notifica?", {danger:true, okLabel:"Elimina"})){
-            state.notifications = state.notifications.filter(x=>x.id!==n.id);
-            store.set(privKey("notifications"), state.notifications);
-            renderNotifBadge();
-            redraw();
-          }
-        });
-        rowActions.appendChild(del);
-        row.appendChild(rowActions);
-        row.addEventListener("click", ()=>{
-          if(!n.read){
-            n.read = true;
-            store.setQuiet(privKey("notifications"), state.notifications);
-            renderNotifBadge();
-            redraw();
-          }
-          if(n.link){
-            close();
-            document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-            const btn = document.querySelector('.tab[data-tab="'+n.link+'"]');
-            if(btn) btn.classList.add("active");
-            render(n.link);
-          }
-        });
-        list.appendChild(row);
-      }
-      const unread = all.filter(n=>!n.read);
-      const read = all.filter(n=>n.read);
-      if(unread.length){
-        list.appendChild(el("div",{class:"notif-section-label"},"Da leggere ("+unread.length+")"));
-        unread.forEach(addRow);
-      }
-      if(read.length){
-        list.appendChild(el("div",{class:"notif-section-label"},"Lette"));
-        read.forEach(addRow);
-      }
+        }
+        if(n.link){
+          closeMenu();
+          document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+          const btn = document.querySelector('.tab[data-tab="'+n.link+'"]');
+          if(btn) btn.classList.add("active");
+          render(n.link);
+        }
+      });
+      list.appendChild(row);
     }
-    markAllBtn.addEventListener("click", ()=>{
-      state.notifications.forEach(n=>n.read=true);
-      store.setQuiet(privKey("notifications"), state.notifications);
-      renderNotifBadge();
-      redraw();
-    });
+    const unread = all.filter(n=>!n.read);
+    const read = all.filter(n=>n.read);
+    if(unread.length){
+      list.appendChild(el("div",{class:"notif-section-label"},"Da leggere ("+unread.length+")"));
+      unread.forEach(addRow);
+    }
+    if(read.length){
+      list.appendChild(el("div",{class:"notif-section-label"},"Lette"));
+      read.forEach(addRow);
+    }
+  }
+  markAllBtn.addEventListener("click", (e)=>{
+    e.stopPropagation();
+    state.notifications.forEach(n=>n.read=true);
+    store.setQuiet(privKey("notifications"), state.notifications);
+    renderNotifBadge();
     redraw();
-    modal.appendChild(list);
-    const actions = el("div",{class:"modal-actions"});
-    actions.appendChild(markAllBtn);
-    const closeBtn = el("button",{class:"btn primary"},"Chiudi");
-    closeBtn.addEventListener("click", close);
-    actions.appendChild(closeBtn);
-    modal.appendChild(actions);
   });
 }
 function openAccountSettingsModal(){
