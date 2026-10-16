@@ -281,6 +281,19 @@ h1,h2,h3,.display{font-family:'Fraunces',serif;}
 }
 .account-settings-btn svg{width:100%; height:100%; display:block;}
 .account-settings-btn:hover{opacity:1; color:var(--forest);}
+.notif-bell-btn{
+  cursor:pointer; width:16px; height:16px; color:var(--ink-soft); opacity:.6; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.notif-bell-btn svg{width:100%; height:100%; display:block;}
+.notif-bell-btn:hover{opacity:1; color:var(--forest);}
+.notif-badge{
+  display:none; position:absolute; top:-5px; right:-7px; min-width:13px; height:13px;
+  padding:0 2px; border-radius:999px; background:var(--rust); color:#fff;
+  font-size:9px; font-weight:700; line-height:13px; text-align:center;
+  font-family:'Inter',sans-serif;
+}
+.notif-badge.visible{display:block;}
 
 /* ---- Main content ---- */
 .main-wrap{
@@ -1722,6 +1735,27 @@ input.cashflow-item-occ-input{
 .color-choice.selected{border-color:var(--ink); box-shadow:0 0 0 2px var(--paper-2);}
 .modal-actions{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end; margin-top:20px;}
 .modal-confirm-msg{font-size:14px; color:var(--ink); line-height:1.5; white-space:pre-line;}
+
+/* ---- Pannello notifiche ---- */
+.notif-list{display:flex; flex-direction:column; gap:6px; max-height:55vh; overflow-y:auto; margin:6px 0;}
+.notif-row{
+  display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:10px;
+  border:1px solid var(--line); background:var(--card); cursor:pointer;
+}
+.notif-row.unread{border-color:var(--teal); background:var(--paper-2);}
+.notif-row-dot{width:7px; height:7px; border-radius:50%; background:var(--teal); flex-shrink:0; margin-top:6px; visibility:hidden;}
+.notif-row.unread .notif-row-dot{visibility:visible;}
+.notif-row-body{flex:1; min-width:0;}
+.notif-row-title{font-weight:700; font-size:13.5px; color:var(--ink-soft);}
+.notif-row.unread .notif-row-title{color:var(--forest);}
+.notif-row-text{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+.notif-row-date{font-size:11px; color:var(--ink-soft); margin-top:4px; font-style:italic;}
+.notif-row-actions{display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0;}
+.notif-row-toggle{font-size:11px; color:var(--teal); cursor:pointer; white-space:nowrap; font-weight:600;}
+.notif-row-toggle:hover{text-decoration:underline;}
+.notif-section-label{font-size:12px; color:var(--ink-soft); margin:14px 0 6px; font-weight:600;}
+.notif-section-label:first-child{margin-top:0;}
+.notif-empty{font-size:13px; color:var(--ink-soft); font-style:italic; padding:16px 0; text-align:center;}
 .modal-radio-row{display:flex; gap:16px; font-size:13px; color:var(--ink);}
 .modal-radio-row label{display:flex; align-items:center; gap:6px; cursor:pointer;}
 
@@ -1879,6 +1913,7 @@ input.cashflow-item-occ-input{
   .user-email{display:block; order:1; flex:1 1 100%; font-size:13px; text-align:right;}
   .zoom-controls{display:none;}
   .theme-select{order:2;}
+  .notif-bell-btn{order:3;}
   .account-settings-btn{order:3;}
   #logout-btn{order:4;}
   main{margin:0; padding:18px 16px calc(88px + env(safe-area-inset-bottom)) 16px;}
@@ -2035,6 +2070,7 @@ input.cashflow-item-occ-input{
       </div>
       <div class="topbar-row topbar-row-account">
         <div id="user-email" class="user-email"></div>
+        <span id="notif-bell-btn" class="notif-bell-btn" title="Notifiche"><span id="notif-badge" class="notif-badge"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
         <span id="account-settings-btn" class="account-settings-btn" title="Impostazioni account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></span>
         <button id="logout-btn" class="btn ghost small">Esci</button>
       </div>
@@ -2136,6 +2172,7 @@ const ICON_GEAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const ICON_GCAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>';
 const ICON_DOJO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6M2 10v4M20 9v6M22 10v4M7 12h10"/><rect x="5" y="7" width="3" height="10" rx="1"/><rect x="16" y="7" width="3" height="10" rx="1"/></svg>';
+const ICON_BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
 const ICON_GRIP = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
 const ICON_MORE_DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M8 3h8l-1 6 3 3v2H6v-2l3-3-1-6Z"/></svg>';
@@ -2618,7 +2655,7 @@ window.addEventListener("beforeunload", (e)=>{
   if(pendingSaves > 0){ e.preventDefault(); e.returnValue = ""; }
 });
 
-let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, ortoWeatherLocation:null, mobilePinned:null, dojoReminders:null };
+let state = { dashboard:null, orto:null, trips:null, bbqs:null, finance:null, sharedBoards:null, customTabs:null, customTabsPrivate:null, hiddenBuiltins:null, taglines:null, dashTitles:null, bootPhrases:null, gommeLayout:null, builtinLabels:null, accountSettings:null, maintenanceItems:null, googleCalendar:null, ortoWeatherLocation:null, mobilePinned:null, dojoReminders:null, notifications:null };
 let activeTrip = null, activeBbq = null, activeSharedBoard = null, activeProject = null;
 let activeMaintenanceItem = null;
 let goodThingPick = null;
@@ -2665,7 +2702,8 @@ const STATE_KEY_MAP_SHARED = {
 };
 const STATE_KEY_MAP_PRIVATE = {
   dashboard:"dashboard", finance:"finance", hiddenBuiltins:"hiddenBuiltins",
-  gommeLayout:"gommeLayout", customTabs:"customTabsPrivate", googleCalendar:"googleCalendar"
+  gommeLayout:"gommeLayout", customTabs:"customTabsPrivate", googleCalendar:"googleCalendar",
+  notifications:"notifications"
 };
 function restoreSnapshot(storeKey, value, targetTab){
   const privPrefix = "priv:"+(currentUser?currentUser.id:"")+":";
@@ -3080,7 +3118,8 @@ async function loadAll(){
     customTabsRaw, customTabsPrivateRaw,
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
-    taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw
+    taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw,
+    notificationsRaw
   ] = await Promise.all([
     store.get(privKey("dashboard"), DEFAULTS.dashboard),
     store.get("orto", DEFAULTS.orto),
@@ -3109,7 +3148,8 @@ async function loadAll(){
     store.get("bootPhrases", DEFAULT_BOOT_PHRASES),
     store.get(privKey("accountSettings"), {notifyFinance27:false}),
     store.get(privKey("googleCalendar"), {connected:false, email:null}),
-    store.get(privKey("dojoReminders"), {token:null})
+    store.get(privKey("dojoReminders"), {token:null}),
+    store.get(privKey("notifications"), [])
   ]);
 
   state.dashboard = dashboardRaw;
@@ -3330,6 +3370,7 @@ async function loadAll(){
   state.accountSettings = accountSettingsRaw;
   state.googleCalendar = googleCalendarRaw;
   state.dojoReminders = dojoRemindersRaw;
+  state.notifications = notificationsRaw || [];
 }
 
 /* ---------------- auth ---------------- */
@@ -3367,6 +3408,7 @@ async function startApp(){
       async ()=>{ location.reload(); }
     );
   }
+  renderNotifBadge();
   // Controllo pioggia dell'Orto: gira una volta ad ogni apertura dell'app, su qualunque scheda
   // — così la data di "ultima annaffiata/pioggia" si corregge da sola senza dover apposta
   // visitare la scheda Orto. Non si aspetta il risultato (non deve ritardare l'avvio dell'app).
@@ -3417,6 +3459,7 @@ document.getElementById("logout-btn").addEventListener("click", async ()=>{
   }
 });
 document.getElementById("account-settings-btn").addEventListener("click", openAccountSettingsModal);
+document.getElementById("notif-bell-btn").addEventListener("click", openNotificationsModal);
 
 /* ---------------- helpers ---------------- */
 // --- Drag & drop per riordino, basato su Pointer Events -------------------------------
@@ -4380,6 +4423,109 @@ function openBootPhrasesModal(){
       close();
     });
     actions.appendChild(cancelBtn); actions.appendChild(saveBtn);
+    modal.appendChild(actions);
+  });
+}
+// Conta le notifiche "da leggere": usato sia per il pallino sulla campanella in alto, sia per
+// decidere se mostrare "Segna tutte come lette" nel pannello.
+function unreadNotificationsCount(){
+  return (state.notifications||[]).filter(n=>!n.read).length;
+}
+function renderNotifBadge(){
+  const badge = document.getElementById("notif-badge");
+  if(!badge) return;
+  const n = unreadNotificationsCount();
+  badge.textContent = n>9 ? "9+" : String(n);
+  badge.classList.toggle("visible", n>0);
+}
+// Pannello notifiche: raggruppa "Da leggere"/"Lette", permette di segnare singolarmente (o tutte
+// insieme) come lette, eliminare una notifica, e — se la notifica porta un link a una scheda
+// (es. il promemoria Finanze) — di aprirla al click, aggiornando anche la scheda evidenziata
+// nella barra laterale (stesso meccanismo usato da Annulla/Ripristina per la navigazione).
+function openNotificationsModal(){
+  openModal((modal, close)=>{
+    modal.appendChild(el("h3",{},"Notifiche"));
+    const list = el("div",{class:"notif-list"});
+    const markAllBtn = el("button",{class:"btn ghost"},"Segna tutte come lette");
+    function redraw(){
+      list.innerHTML = "";
+      const all = (state.notifications||[]).slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+      markAllBtn.style.display = all.some(n=>!n.read) ? "" : "none";
+      if(!all.length){
+        list.appendChild(el("div",{class:"notif-empty"},"Nessuna notifica."));
+        return;
+      }
+      function addRow(n){
+        const row = el("div",{class:"notif-row"+(n.read?"":" unread")});
+        row.appendChild(el("span",{class:"notif-row-dot"}));
+        const body = el("div",{class:"notif-row-body"});
+        body.appendChild(el("div",{class:"notif-row-title"}, n.title||"Notifica"));
+        if(n.text) body.appendChild(el("div",{class:"notif-row-text"}, n.text));
+        body.appendChild(el("div",{class:"notif-row-date"}, fmtDateShort(n.date)));
+        row.appendChild(body);
+        const rowActions = el("div",{class:"notif-row-actions"});
+        const toggle = el("span",{class:"notif-row-toggle"}, n.read?"Segna da leggere":"Segna come letta");
+        toggle.addEventListener("click",(e)=>{
+          e.stopPropagation();
+          n.read = !n.read;
+          store.setQuiet(privKey("notifications"), state.notifications);
+          renderNotifBadge();
+          redraw();
+        });
+        rowActions.appendChild(toggle);
+        const del = el("span",{class:"del", html:"✕", title:"Elimina notifica"});
+        del.addEventListener("click", async (e)=>{
+          e.stopPropagation();
+          if(await confirmModal("Eliminare questa notifica?", {danger:true, okLabel:"Elimina"})){
+            state.notifications = state.notifications.filter(x=>x.id!==n.id);
+            store.set(privKey("notifications"), state.notifications);
+            renderNotifBadge();
+            redraw();
+          }
+        });
+        rowActions.appendChild(del);
+        row.appendChild(rowActions);
+        row.addEventListener("click", ()=>{
+          if(!n.read){
+            n.read = true;
+            store.setQuiet(privKey("notifications"), state.notifications);
+            renderNotifBadge();
+            redraw();
+          }
+          if(n.link){
+            close();
+            document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+            const btn = document.querySelector('.tab[data-tab="'+n.link+'"]');
+            if(btn) btn.classList.add("active");
+            render(n.link);
+          }
+        });
+        list.appendChild(row);
+      }
+      const unread = all.filter(n=>!n.read);
+      const read = all.filter(n=>n.read);
+      if(unread.length){
+        list.appendChild(el("div",{class:"notif-section-label"},"Da leggere ("+unread.length+")"));
+        unread.forEach(addRow);
+      }
+      if(read.length){
+        list.appendChild(el("div",{class:"notif-section-label"},"Lette"));
+        read.forEach(addRow);
+      }
+    }
+    markAllBtn.addEventListener("click", ()=>{
+      state.notifications.forEach(n=>n.read=true);
+      store.setQuiet(privKey("notifications"), state.notifications);
+      renderNotifBadge();
+      redraw();
+    });
+    redraw();
+    modal.appendChild(list);
+    const actions = el("div",{class:"modal-actions"});
+    actions.appendChild(markAllBtn);
+    const closeBtn = el("button",{class:"btn primary"},"Chiudi");
+    closeBtn.addEventListener("click", close);
+    actions.appendChild(closeBtn);
     modal.appendChild(actions);
   });
 }
