@@ -9921,7 +9921,7 @@ function renderFinanzeInvestimenti(main){
     mainCol.appendChild(el("span",{class:"invest-name"}, inv.name));
     {
       const isStale = inv.lastPrice==null;
-      let updText = isStale ? "mai aggiornato — prezzo di carico" : "prezzo agg. il "+new Date(inv.lastPriceAt).toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit"});
+      let updText = isStale ? "mai aggiornato — prezzo di carico" : "prezzo agg. il "+new Date(inv.lastPriceAt).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"});
       // Fonte del prezzo (Twelve Data o la riserva Yahoo, con il ticker che ha effettivamente
       // trovato) — utile per verificare che l'indovinamento automatico non abbia agganciato un
       // titolo omonimo ma sbagliato su un altro mercato.
@@ -10014,9 +10014,6 @@ function renderFinanzeInvestimenti(main){
         store.set(privKey("finance"), state.finance);
       });
       alertRow.appendChild(tickerInp);
-      if(inv.lastPriceAt && (inv.alertAbove!=null || inv.alertBelow!=null)){
-        alertRow.appendChild(el("span",{}, "· controllato il "+new Date(inv.lastPriceAt).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})));
-      }
       row.appendChild(alertRow);
     }
     if(inv.manual && inv.manualNote){
