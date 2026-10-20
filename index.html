@@ -9920,15 +9920,12 @@ function renderFinanzeInvestimenti(main){
     mainCol.appendChild(topLine);
     mainCol.appendChild(el("span",{class:"invest-name"}, inv.name));
     const isStale = inv.lastPrice==null;
-    let updText = isStale ? "mai aggiornato — prezzo di carico" : "prezzo agg. il "+new Date(inv.lastPriceAt).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"});
-    // Fonte del prezzo (Twelve Data o la riserva Yahoo, con il ticker che ha effettivamente
-    // trovato) — utile per verificare che l'indovinamento automatico non abbia agganciato un
-    // titolo omonimo ma sbagliato su un altro mercato.
-    if(!isStale && inv.priceSource==="yahoo"){
-      updText += " · Yahoo"+(inv.priceSourceTicker?" ("+inv.priceSourceTicker+")":"");
-    } else if(!isStale && inv.priceSource==="twelvedata"){
-      updText += " · Twelve Data";
-    }
+    const updText = isStale ? "mai aggiornato — prezzo di carico" : new Date(inv.lastPriceAt).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"});
+    // Fonte del prezzo (Twelve Data o la riserva Yahoo) su una riga a parte — utile per capire
+    // da dove arriva senza doversi fidare alla cieca dell'indovinamento automatico.
+    let sourceText = null;
+    if(!isStale && inv.priceSource==="yahoo") sourceText = "Fonte: Yahoo";
+    else if(!isStale && inv.priceSource==="twelvedata") sourceText = "Fonte: Twelve Data";
     {
       const rowRealized = investRealizedYearFilter==="all" ? r.combinedRealizedEUR : (r.realizedByYearEUR[investRealizedYearFilter]||null);
       if(rowRealized){
@@ -9951,6 +9948,9 @@ function renderFinanzeInvestimenti(main){
         r.qty+" × "+fmtNativeAmount(r.priceNative, inv.currency)+(!r.priceKnown?" (carico)":"")
       ));
       qtyCol.appendChild(el("span",{class:"invest-updated"+(isStale?" stale":""), style:"display:block;"}, updText));
+      if(sourceText){
+        qtyCol.appendChild(el("span",{class:"invest-updated", style:"display:block;"}, sourceText));
+      }
       row.appendChild(qtyCol);
     }
     row.appendChild(el("div",{class:"invest-value"}, r.valueEUR!=null ? fmtEUR(r.valueEUR) : "—"));
