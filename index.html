@@ -3448,6 +3448,7 @@ async function startApp(){
   // Piccolo ritardo per dare tempo allo script accounts.google.com di caricarsi (è async/defer).
   setTimeout(attemptSilentGcalReauth, 800);
   setTimeout(initPriceAlertMonitor, 1500);
+  setTimeout(initDeadlineMonitor, 1500);
 }
 document.getElementById("login-form").addEventListener("submit", async (e)=>{
   e.preventDefault();
@@ -4447,13 +4448,15 @@ function renderNotifBadge(){
 }
 // Aggiunge una notifica al pannello "campanella" (stessa forma usata dall'email promemoria
 // Finanze lato server): tiene solo le ultime 50, aggiorna subito il pallino. "link" è il nome
-// scheda (es. "finanze") da aprire al click sulla notifica, opzionale.
-function addNotification(title, text, link){
+// scheda (es. "finanze") da aprire al click sulla notifica, opzionale. "extra" è un oggetto di
+// campi aggiuntivi da unire alla notifica (es. {projectId} per i promemoria Progetti, così il
+// click porta dritto al progetto giusto invece che solo alla scheda).
+function addNotification(title, text, link, extra){
   if(!state.notifications) state.notifications = [];
-  state.notifications.unshift({
+  state.notifications.unshift(Object.assign({
     id: "n" + Date.now() + Math.random().toString(36).slice(2,6),
     title, text, date: new Date().toISOString(), read:false, link: link||null
-  });
+  }, extra||{}));
   state.notifications = state.notifications.slice(0,50);
   store.setQuiet(privKey("notifications"), state.notifications);
   renderNotifBadge();
@@ -4537,6 +4540,7 @@ function initNotificationsDropdown(){
           document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
           const btn = document.querySelector('.tab[data-tab="'+n.link+'"]');
           if(btn) btn.classList.add("active");
+          if(n.link==="progetti" && n.projectId) activeProject = n.projectId;
           render(n.link);
         }
       });
@@ -9733,6 +9737,60 @@ function initPriceAlertMonitor(){
   setInterval(()=>{
     if(state.finance.investAutoPriceEnabled) refreshInvestmentPrices({silent:true});
   }, 60*60*1000);
+}
+
+// Controlla le scadenze ("end") delle attività Progetti non completate e avvisa nel pannello
+// notifiche: un promemoria quando la scadenza è entro 7 giorni, un avviso "in ritardo" quando è
+// già passata. Ogni avviso scatta una sola volta per attività, grazie a due flag salvati
+// sull'attività stessa (notifiedDueSoon/notifiedOverdue); se la scadenza viene spostata più in
+// là (o l'attività segnata/riaperta), i flag si azzerano così l'avviso può ripresentarsi in
+// futuro invece di sparire per sempre. Gira una volta all'avvio e poi una volta al giorno,
+// indipendentemente dalla scheda su cui ti trovi (stesso principio del controllo prezzi sopra).
+function checkProjectDeadlines(){
+  const todayIso = isoDate(new Date());
+  const reminderUntil = addDaysISO(new Date(), 7);
+  let changed = false;
+  (state.projects||[]).forEach(project=>{
+    const tasks = (project.data && project.data.tasks) || [];
+    tasks.forEach(t=>{
+      if(t.status==="done" || !t.end){
+        if(t.notifiedDueSoon || t.notifiedOverdue){ t.notifiedDueSoon=false; t.notifiedOverdue=false; changed=true; }
+        return;
+      }
+      if(t.end < todayIso){
+        if(!t.notifiedOverdue){
+          addNotification(
+            "In ritardo: "+(t.name||"Attività"),
+            "Nel progetto \""+project.name+"\", scadenza "+fmtDateShort(t.end)+".",
+            "progetti", {projectId:project.id}
+          );
+          t.notifiedOverdue = true; changed = true;
+        }
+      } else {
+        if(t.notifiedOverdue){ t.notifiedOverdue = false; changed = true; } // riportata avanti: potrà riavvisare se torna in ritardo
+        if(t.end <= reminderUntil){
+          if(!t.notifiedDueSoon){
+            addNotification(
+              "In scadenza tra poco: "+(t.name||"Attività"),
+              "Nel progetto \""+project.name+"\", scade il "+fmtDateShort(t.end)+".",
+              "progetti", {projectId:project.id}
+            );
+            t.notifiedDueSoon = true; changed = true;
+          }
+        } else if(t.notifiedDueSoon){
+          t.notifiedDueSoon = false; changed = true; // spostata oltre i 7 giorni: il reminder potrà riscattare quando si riavvicina
+        }
+      }
+    });
+  });
+  if(changed) saveProjects(true);
+}
+let deadlineMonitorStarted = false;
+function initDeadlineMonitor(){
+  if(deadlineMonitorStarted) return;
+  deadlineMonitorStarted = true;
+  checkProjectDeadlines();
+  setInterval(checkProjectDeadlines, 24*60*60*1000);
 }
 
 // Grafico a barre del P&L realizzato per anno solare (una barra per anno, sopra/sotto lo zero
