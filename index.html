@@ -8753,7 +8753,10 @@ function financeBlock(title, key, totalValue, deltaNode){
       const am = item.amortization;
       hintEl = el("span",{class:"finance-amort-hint"}, fmtRataLabel(am));
     } else if(isPortfolioTitoli){
-      const invs = state.finance.investments || [];
+      // Solo i titoli non manuali: quelli manuali (es. BTP) si aggiornano solo a mano con 💰 e
+      // restano "vecchi" per definizione — mescolarli falserebbe "il meno recente" facendo
+      // sembrare tutto il portafoglio non aggiornato per colpa di un solo titolo manuale.
+      const invs = (state.finance.investments || []).filter(iv=>!iv.manual);
       if(invs.length){
         const stale = invs.filter(iv=>iv.lastPrice==null);
         let hintTxt = "";
