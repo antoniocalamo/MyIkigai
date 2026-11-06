@@ -4542,6 +4542,7 @@ function initNotificationsDropdown(){
           const btn = document.querySelector('.tab[data-tab="'+n.link+'"]');
           if(btn) btn.classList.add("active");
           if(n.link==="progetti" && n.projectId) activeProject = n.projectId;
+          if(n.link==="orto" && n.ortoObjId) ortoSelectOnly(n.ortoObjId);
           render(n.link);
         }
       });
@@ -9789,12 +9790,58 @@ function checkProjectDeadlines(){
   });
   if(changed) saveProjects(true);
 }
+// Stessa idea di checkProjectDeadlines, ma per la "Raccolta prevista" delle colture nella board
+// Orto. Qui non esiste un concetto di "completata" (una pianta sulla board non ha uno stato
+// fatto/da fare): l'avviso "in ritardo" scatta quindi una sola volta e basta, e torna a poter
+// scattare solo se sposti la data di raccolta o elimini e ricrei la pianta — non si ripete ogni
+// giorno all'infinito.
+function checkOrtoHarvestDeadlines(){
+  const todayIso = isoDate(new Date());
+  const reminderUntil = addDaysISO(new Date(), 7);
+  let changed = false;
+  ((state.orto && state.orto.objects) || []).forEach(o=>{
+    if(o.type!=="coltura") return;
+    if(!o.harvestDate){
+      if(o.notifiedHarvestSoon || o.notifiedHarvestOverdue){ o.notifiedHarvestSoon=false; o.notifiedHarvestOverdue=false; changed=true; }
+      return;
+    }
+    if(o.harvestDate < todayIso){
+      if(!o.notifiedHarvestOverdue){
+        addNotification(
+          "Raccolta in ritardo: "+(o.name||"Coltura"),
+          "Nell'Orto, raccolta prevista il "+fmtDateShort(o.harvestDate)+".",
+          "orto", {ortoObjId:o.id}
+        );
+        o.notifiedHarvestOverdue = true; changed = true;
+      }
+    } else {
+      if(o.notifiedHarvestOverdue){ o.notifiedHarvestOverdue = false; changed = true; }
+      if(o.harvestDate <= reminderUntil){
+        if(!o.notifiedHarvestSoon){
+          addNotification(
+            "Raccolta in arrivo: "+(o.name||"Coltura"),
+            "Nell'Orto, raccolta prevista il "+fmtDateShort(o.harvestDate)+".",
+            "orto", {ortoObjId:o.id}
+          );
+          o.notifiedHarvestSoon = true; changed = true;
+        }
+      } else if(o.notifiedHarvestSoon){
+        o.notifiedHarvestSoon = false; changed = true;
+      }
+    }
+  });
+  if(changed) store.setQuiet("orto", state.orto);
+}
 let deadlineMonitorStarted = false;
 function initDeadlineMonitor(){
   if(deadlineMonitorStarted) return;
   deadlineMonitorStarted = true;
   checkProjectDeadlines();
-  setInterval(checkProjectDeadlines, 24*60*60*1000);
+  checkOrtoHarvestDeadlines();
+  setInterval(()=>{
+    checkProjectDeadlines();
+    checkOrtoHarvestDeadlines();
+  }, 24*60*60*1000);
 }
 
 // Grafico a barre del P&L realizzato per anno solare (una barra per anno, sopra/sotto lo zero
