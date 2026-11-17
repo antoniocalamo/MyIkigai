@@ -2350,6 +2350,7 @@ const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly
 // refresh token ai siti pubblici come il nostro, quindi va richiesto di nuovo quando scade.
 let gcalTokenClient = null;
 let gcalAccessToken = null;
+let gcalStatusRedraw = null; // se il pannello Impostazioni account è aperto, lo stato lì mostrato si aggiorna in diretta (vedi buildGcalStatusButton)
 let gcalTokenExpiresAt = 0; // timestamp ms
 let gcalSilentInFlight = false; // evita di avviare un secondo tentativo mentre uno è già in corso
 let gcalLastAttemptWasSilent = false; // distingue, nel callback condiviso, un tentativo silenzioso da un click esplicito su "Connetti"
@@ -2863,6 +2864,7 @@ function ensureGcalTokenClient(){
           );
         }
         render(currentRenderedTab);
+        if(gcalStatusRedraw) gcalStatusRedraw();
         return;
       }
       gcalAccessToken = resp.access_token;
@@ -2873,6 +2875,7 @@ function ensureGcalTokenClient(){
       if(!wasConnected) store.set(privKey("googleCalendar"), state.googleCalendar);
       else store.setQuiet(privKey("googleCalendar"), state.googleCalendar);
       render(currentRenderedTab);
+      if(gcalStatusRedraw) gcalStatusRedraw();
     }
   });
   return gcalTokenClient;
@@ -4679,7 +4682,7 @@ function openAccountSettingsModal(){
     closeBtn.addEventListener("click", close);
     actions.appendChild(closeBtn);
     modal.appendChild(actions);
-  });
+  }, ()=>{ gcalStatusRedraw = null; });
 }
 function openViewSettingsModal(){
   openModal((modal, close)=>{
@@ -4872,24 +4875,37 @@ function openMonthlyPrioritiesModal(){
 // Bottone che riassume lo stato della connessione Google Calendar di QUESTO utente e
 // permette di connettersi/riconnettersi/scollegarsi. Tre stati possibili: non connesso,
 // connesso e funzionante, connesso ma con token scaduto/non rinnovabile in silenzio.
+// Holder fisso + redraw interno (stesso principio di buildDojoStatusBlock): così, quando la
+// connessione cambia stato (connetti/riconnetti/scollega), anche se la risposta arriva in modo
+// asincrono dal callback di Google, il blocco nel pannello Impostazioni account si aggiorna da
+// solo invece di restare fermo alla scritta vecchia finché non ricarichi la pagina.
 function buildGcalStatusButton(){
-  const connected = state.googleCalendar && state.googleCalendar.connected;
-  if(!connected){
-    const btn = el("button",{class:"btn ghost small"},"Connetti Google Calendar");
+  const holder = el("div",{});
+  function redraw(){
+    holder.innerHTML = "";
+    const connected = state.googleCalendar && state.googleCalendar.connected;
+    if(!connected){
+      const btn = el("button",{class:"btn ghost small"},"Connetti Google Calendar");
+      btn.addEventListener("click", connectGoogleCalendar);
+      holder.appendChild(btn);
+      return;
+    }
+    if(gcalHasValidToken()){
+      const wrap = el("span",{class:"gcal-status-wrap"});
+      wrap.appendChild(el("span",{class:"btn ghost small", style:"cursor:default;opacity:.75;"},"● Google Calendar connesso"));
+      const off = el("button",{class:"btn ghost small", title:"Scollega Google Calendar"},"Scollega");
+      off.addEventListener("click", async ()=>{ if(await confirmModal("Scollegare Google Calendar? Gli eventi non verranno più mostrati finché non ricolleghi.", {danger:true, okLabel:"Scollega"})){ disconnectGoogleCalendar(); redraw(); } });
+      wrap.appendChild(off);
+      holder.appendChild(wrap);
+      return;
+    }
+    const btn = el("button",{class:"btn ghost small", style:"color:var(--rust);"},"⚠ Ricollega Google Calendar");
     btn.addEventListener("click", connectGoogleCalendar);
-    return btn;
+    holder.appendChild(btn);
   }
-  if(gcalHasValidToken()){
-    const wrap = el("span",{class:"gcal-status-wrap"});
-    wrap.appendChild(el("span",{class:"btn ghost small", style:"cursor:default;opacity:.75;"},"● Google Calendar connesso"));
-    const off = el("button",{class:"btn ghost small", title:"Scollega Google Calendar"},"Scollega");
-    off.addEventListener("click", async ()=>{ if(await confirmModal("Scollegare Google Calendar? Gli eventi non verranno più mostrati finché non ricolleghi.", {danger:true, okLabel:"Scollega"})) disconnectGoogleCalendar(); });
-    wrap.appendChild(off);
-    return wrap;
-  }
-  const btn = el("button",{class:"btn ghost small", style:"color:var(--rust);"},"⚠ Ricollega Google Calendar");
-  btn.addEventListener("click", connectGoogleCalendar);
-  return btn;
+  redraw();
+  gcalStatusRedraw = redraw;
+  return holder;
 }
 // A differenza di Google Calendar non c'è un popup di accesso: il "collegamento" è incollare
 // una volta il codice segreto generato lato My Dojo. Viene salvato privatamente (stesso store
