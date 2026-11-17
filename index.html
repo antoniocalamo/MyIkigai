@@ -2351,7 +2351,8 @@ const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly
 let gcalTokenClient = null;
 let gcalAccessToken = null;
 let gcalTokenExpiresAt = 0; // timestamp ms
-let gcalSilentAttempted = false;
+let gcalSilentInFlight = false; // evita di avviare un secondo tentativo mentre uno è già in corso
+let gcalLastAttemptWasSilent = false; // distingue, nel callback condiviso, un tentativo silenzioso da un click esplicito su "Connetti"
 function getGreeting(){
   const h = new Date().getHours();
   if(h>=6 && h<13) return "Buongiorno";
@@ -2842,12 +2843,24 @@ function ensureGcalTokenClient(){
     client_id: GOOGLE_CLIENT_ID,
     scope: GOOGLE_CALENDAR_SCOPE,
     callback: async (resp)=>{
+      const wasSilent = gcalLastAttemptWasSilent;
+      gcalSilentInFlight = false; gcalLastAttemptWasSilent = false;
       if(resp.error){
         console.error("Google Calendar auth error", resp);
         gcalAccessToken = null; gcalTokenExpiresAt = 0;
         clearGcalSessionToken();
         if(resp.error !== "immediate_failed"){ // "immediate_failed" = solo il tentativo silenzioso non è riuscito, non è un rifiuto esplicito
           await alertModal("Accesso a Google Calendar non riuscito o negato. Puoi riprovare quando vuoi con \"Connetti Google Calendar\".");
+        } else if(wasSilent && state.googleCalendar && state.googleCalendar.connected && !state.googleCalendar.notifiedDisconnected){
+          // Il tentativo automatico in background non è riuscito (serve di nuovo il consenso esplicito):
+          // un avviso silenzioso (nessun popup) non basta, lo segnaliamo nel pannello notifiche.
+          state.googleCalendar.notifiedDisconnected = true;
+          store.setQuiet(privKey("googleCalendar"), state.googleCalendar);
+          addNotification(
+            "Google Calendar disconnesso",
+            "La connessione è scaduta: riconnettila dalla Home quando vuoi (\"Ricollega Google Calendar\").",
+            "dashboard"
+          );
         }
         render(currentRenderedTab);
         return;
@@ -2868,20 +2881,37 @@ function ensureGcalTokenClient(){
 async function connectGoogleCalendar(){
   const client = ensureGcalTokenClient();
   if(!client){ await alertModal("La libreria di accesso Google non si è ancora caricata, riprova tra un istante."); return; }
+  gcalLastAttemptWasSilent = false;
   client.requestAccessToken({ prompt: "consent" });
 }
-// Tentativo "silenzioso" (nessun popup, salvo il breve lampeggio impostato da Google stesso)
-// all'avvio, se l'utente risultava già connesso in precedenza. Prima di tutto controlla se
-// abbiamo già un token buono in sessionStorage da un refresh precedente nella stessa scheda:
-// se c'è, evita del tutto la chiamata a Google.
+// Tentativo "silenzioso" (nessun popup, salvo il breve lampeggio impostato da Google stesso),
+// se l'utente risultava già connesso in precedenza ma il token è scaduto (dura solo ~1 ora:
+// Google non dà un refresh token ai siti pubblici come il nostro, va richiesto di nuovo quando
+// scade). Chiamato all'avvio e poi una volta al giorno (vedi initGcalReauthMonitor), così non
+// serve ricollegarsi a mano ogni volta che la connessione scade durante la giornata — salvo che
+// Google stesso chieda un consenso esplicito, nel qual caso avvisiamo con una notifica invece
+// di riprovare in silenzio all'infinito. Prima di tutto controlla se abbiamo già un token buono
+// in sessionStorage da un refresh precedente nella stessa scheda: se c'è, evita del tutto la
+// chiamata a Google.
 function attemptSilentGcalReauth(){
-  if(gcalSilentAttempted) return;
-  gcalSilentAttempted = true;
+  if(gcalSilentInFlight) return;
   if(!state.googleCalendar || !state.googleCalendar.connected) return;
+  if(gcalHasValidToken()) return;
   if(loadGcalTokenFromSession()){ render(currentRenderedTab); return; }
   const client = ensureGcalTokenClient();
   if(!client) return;
+  gcalSilentInFlight = true;
+  gcalLastAttemptWasSilent = true;
   client.requestAccessToken({ prompt: "none" });
+}
+let gcalReauthMonitorStarted = false;
+// Riprova la riconnessione silenziosa una volta al giorno (oltre al tentativo fatto all'avvio),
+// così se il token scade mentre l'app resta aperta tutto il giorno non serve aspettare il
+// prossimo login per essere ricollegati in automatico.
+function initGcalReauthMonitor(){
+  if(gcalReauthMonitorStarted) return;
+  gcalReauthMonitorStarted = true;
+  setInterval(attemptSilentGcalReauth, 24*60*60*1000);
 }
 // Scollega: dimentica il token in memoria, in sessionStorage e lo stato salvato. Non revoca
 // il permesso lato Google (l'utente può farlo da myaccount.google.com se vuole); qui
@@ -3448,6 +3478,7 @@ async function startApp(){
   document.querySelector('.tab[data-tab="dashboard"]').classList.add("active");
   // Piccolo ritardo per dare tempo allo script accounts.google.com di caricarsi (è async/defer).
   setTimeout(attemptSilentGcalReauth, 800);
+  setTimeout(initGcalReauthMonitor, 1500);
   setTimeout(initPriceAlertMonitor, 1500);
   setTimeout(initDeadlineMonitor, 1500);
 }
