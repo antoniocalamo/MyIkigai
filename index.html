@@ -5205,7 +5205,10 @@ function renderTaskBlock(main, day, t, i){
     });
     const sdel = el("span",{class:"del", html:"✕"});
     sdel.addEventListener("click", ()=>{
-      t.subtasks.splice(si,1); syncParentDone(t);
+      // Niente syncParentDone qui: cancellare una sotto-attività non deve mai completare
+      // l'attività principale come effetto collaterale, anche se le sotto-attività rimaste sono
+      // già tutte spuntate — cancellare non equivale a completare.
+      t.subtasks.splice(si,1);
       store.set(privKey("dashboard"), state.dashboard); renderDashboard(clear(main));
     });
     srow.appendChild(sGrip); srow.appendChild(sGrid); srow.appendChild(stxt); srow.appendChild(sdel);
