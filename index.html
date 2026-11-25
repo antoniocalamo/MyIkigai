@@ -486,12 +486,14 @@ textarea{resize:vertical;}
   display:flex;
   flex-direction:column;
   gap:6px;
+  min-width:0;
 }
 .day-row{
   display:grid;
   grid-template-columns:110px 1fr;
   gap:14px;
   align-items:start;
+  min-width:0;
 }
 .day-label{
   font-family:'Fraunces',serif;
@@ -500,7 +502,7 @@ textarea{resize:vertical;}
   color:var(--forest);
   padding-top:8px;
 }
-.day-card{padding:8px 10px; border-left:4px solid var(--day-color, var(--line)); transition: box-shadow .12s ease;}
+.day-card{padding:8px 10px; border-left:4px solid var(--day-color, var(--line)); transition: box-shadow .12s ease; min-width:0;}
 .day-card.day-card-drop-target{box-shadow:0 0 0 2px var(--forest) inset;}
 .section-label{
   display:flex; align-items:center; gap:9px;
