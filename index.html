@@ -2942,37 +2942,64 @@ async function ensureGcalEventsLoaded(){
   gcalEventsFetchPromise = fetchGcalEventsFromApi().finally(()=>{ gcalEventsFetchPromise = null; });
   return gcalEventsFetchPromise;
 }
+// Legge TUTTI i calendari che hai attivi su Google (non solo quello principale): compleanni,
+// promemoria ricorrenti, festività, eventuali calendari condivisi, ecc. — esattamente quelli che
+// vedi tu stesso nella app di Google Calendar sotto "I miei calendari"/"Altri calendari" (quelli
+// che hai disattivato lì, con la spunta tolta, restano esclusi anche qui).
 async function fetchGcalEventsFromApi(){
   try{
     const timeMin = new Date(); timeMin.setHours(0,0,0,0);
     const timeMax = new Date(timeMin); timeMax.setDate(timeMax.getDate()+7);
-    const url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
-      + "?timeMin=" + encodeURIComponent(timeMin.toISOString())
-      + "&timeMax=" + encodeURIComponent(timeMax.toISOString())
-      + "&singleEvents=true&orderBy=startTime&maxResults=100";
-    const res = await fetch(url, { headers: { "Authorization": "Bearer " + gcalAccessToken } });
-    if(res.status === 401){
+    const authHeaders = { "Authorization": "Bearer " + gcalAccessToken };
+
+    const calListRes = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", { headers: authHeaders });
+    if(calListRes.status === 401){
       // Token rifiutato da Google (revocato o scaduto lato server): torniamo allo stato
       // "da ricollegare" invece di continuare a fallire in silenzio.
       gcalAccessToken = null; gcalTokenExpiresAt = 0;
       render(currentRenderedTab);
       return null;
     }
-    if(!res.ok){ console.error("gcal events: risposta non ok", res.status); return null; }
-    const data = await res.json();
+    let calendarIds = ["primary"];
+    if(calListRes.ok){
+      const calListData = await calListRes.json();
+      const ids = (calListData.items || []).filter(c => c.selected !== false && !c.hidden).map(c => c.id);
+      if(ids.length) calendarIds = ids;
+    } // se la calendarList fallisce, ripieghiamo sul solo calendario principale invece di non mostrare nulla
+
     const map = {};
-    (data.items || []).forEach(ev=>{
-      if(ev.status === "cancelled") return;
-      let dateStr = null, allDay = false, time = null;
-      if(ev.start && ev.start.date){ dateStr = ev.start.date; allDay = true; }
-      else if(ev.start && ev.start.dateTime){
-        const d = new Date(ev.start.dateTime);
-        dateStr = isoDate(d);
-        time = d.toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit"});
-      }
-      if(!dateStr) return;
-      if(!map[dateStr]) map[dateStr] = [];
-      map[dateStr].push({ title: ev.summary || "(senza titolo)", allDay, time, link: ev.htmlLink || null });
+    await Promise.all(calendarIds.map(async (calId)=>{
+      try{
+        const url = "https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events"
+          + "?timeMin=" + encodeURIComponent(timeMin.toISOString())
+          + "&timeMax=" + encodeURIComponent(timeMax.toISOString())
+          + "&singleEvents=true&orderBy=startTime&maxResults=100";
+        const res = await fetch(url, { headers: authHeaders });
+        if(!res.ok){ console.error("gcal events: risposta non ok per calendario", calId, res.status); return; }
+        const data = await res.json();
+        (data.items || []).forEach(ev=>{
+          if(ev.status === "cancelled") return;
+          let dateStr = null, allDay = false, time = null;
+          if(ev.start && ev.start.date){ dateStr = ev.start.date; allDay = true; }
+          else if(ev.start && ev.start.dateTime){
+            const d = new Date(ev.start.dateTime);
+            dateStr = isoDate(d);
+            time = d.toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit"});
+          }
+          if(!dateStr) return;
+          if(!map[dateStr]) map[dateStr] = [];
+          map[dateStr].push({ title: ev.summary || "(senza titolo)", allDay, time, link: ev.htmlLink || null });
+        });
+      }catch(e){ console.error("gcal events: errore fetch calendario", calId, e); } // un calendario che fallisce non deve bloccare gli altri
+    }));
+    // Unendo più calendari l'ordine "per orario" di ciascuno non basta più: lo rifacciamo qui,
+    // giorno per giorno, con gli eventi "tutto il giorno" per primi (come fa Google Calendar).
+    Object.keys(map).forEach(d=>{
+      map[d].sort((a,b)=>{
+        if(a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+        if(a.time && b.time) return a.time.localeCompare(b.time);
+        return 0;
+      });
     });
     gcalEventsCache = map;
     gcalEventsCacheAt = Date.now();
