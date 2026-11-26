@@ -3010,24 +3010,17 @@ async function fetchGcalEventsFromApi(){
 // tutto questo è salvato qui in locale (chiave = calendario+id dell'occorrenza) e non torna mai
 // indietro verso Google. Il trascinamento riordina solo all'interno dello stesso giorno (niente
 // spostamento tra giorni, che per un evento legato a una data precisa non avrebbe senso).
-function buildGcalDayEvents(dateStr){
+function buildGcalDayEvents(dayCard, dateStr){
   const wrap = el("div",{class:"gcal-day-events"});
   if(!state.googleCalendar || !state.googleCalendar.connected) return wrap;
   ensureGcalEventsLoaded().then(map=>{
     if(!map) return;
-    const rawEvents = map[dateStr];
-    if(!rawEvents || !rawEvents.length) return;
-    // Applica l'ordine personalizzato salvato (se c'è) e aggiunge in coda gli eventi non ancora
-    // visti (nuovi, o mai trascinati), nel loro ordine naturale per data/ora.
-    const byKey = {}; rawEvents.forEach(e=>{ byKey[e.key] = e; });
-    const events = [];
-    ((state.gcalEventOrder && state.gcalEventOrder[dateStr]) || []).forEach(k=>{
-      if(byKey[k]){ events.push(byKey[k]); delete byKey[k]; }
-    });
-    rawEvents.forEach(e=>{ if(byKey[e.key]) events.push(e); });
-
+    const events = map[dateStr]; // già ordinati per orario da fetchGcalEventsFromApi
+    if(!events || !events.length) return;
     wrap.innerHTML = "";
-    events.forEach((ev,i)=>{
+    const order = dayOrderFor(dateStr);
+    events.forEach(ev=>{
+      const slotRef = "gcal:"+ev.key;
       const done = !!(state.gcalDoneEvents && state.gcalDoneEvents[ev.key]);
       const urgent = !!(state.gcalUrgentEvents && state.gcalUrgentEvents[ev.key]);
       if(state.dashboard.showCompleted===false && done) return;
@@ -3059,13 +3052,9 @@ function buildGcalDayEvents(dateStr){
       const src = el("span",{class:"gcal-task-source", html:ICON_GCAL, title:"Da Google Calendar (sola lettura)"+(ev.link?" · clicca per aprire":"")});
       if(ev.link) src.addEventListener("click",(e)=>{ e.stopPropagation(); window.open(ev.link, "_blank", "noopener"); });
       row.appendChild(src);
-      attachRowDrag(grip, row, i, events, ()=>{
-        if(!state.gcalEventOrder) state.gcalEventOrder = {};
-        state.gcalEventOrder[dateStr] = events.map(e=>e.key);
-        store.setQuiet(privKey("gcalEventOrder"), state.gcalEventOrder);
-        renderDashboard(clear(document.getElementById("main")));
-      });
-      wrap.appendChild(row);
+      attachExternalRowDrag(grip, row, dateStr, slotRef, ()=>renderDashboard(clear(document.getElementById("main"))));
+      if(order.indexOf(slotRef)===-1) wrap.appendChild(row);
+      else insertExternalDayRow(dayCard, dateStr, slotRef, row);
     });
   });
   return wrap;
@@ -3107,12 +3096,12 @@ async function fetchDojoEventsFromApi(){
     return null;
   }
 }
-// Stesso trattamento di buildGcalDayEvents (stessa riga/checkbox/urgente delle attività normali,
-// riusando le classi "gcal-task-text"/"gcal-task-source" per lo stesso stile): quando ci sono più
-// esercizi nello stesso giorno li accorpa in un'unica riga ("Palestra: A, B, C") invece di una
-// riga per esercizio, quindi qui non c'è drag & drop — con al massimo una riga per giorno non c'è
-// nulla da riordinare al suo interno. Spunta/urgenza restano solo locali, My Dojo è di sola lettura.
-function buildDojoDayEvents(dateStr){
+// Stesso trattamento di buildGcalDayEvents (stessa riga/checkbox/urgente/trascinamento delle
+// attività normali, riusando le classi "gcal-task-text"/"gcal-task-source" per lo stesso stile):
+// quando ci sono più esercizi nello stesso giorno li accorpa in un'unica riga ("Palestra: A, B,
+// C") invece di una riga per esercizio. Spunta/urgenza/posizione restano solo locali, My Dojo è di
+// sola lettura.
+function buildDojoDayEvents(dayCard, dateStr){
   const wrap = el("div",{class:"dojo-day-events"});
   if(!dojoHasToken()) return wrap;
   ensureDojoEventsLoaded().then(map=>{
@@ -3120,13 +3109,15 @@ function buildDojoDayEvents(dateStr){
     const events = map[dateStr];
     if(!events || !events.length) return;
     wrap.innerHTML = "";
+    const slotRef = "dojo";
     const key = dateStr + "|" + (events.length>1 ? "__merged__" : events[0].title);
     const label = events.length>1 ? ("Palestra: " + events.map(e=>e.title).join(", ")) : events[0].title;
     const done = !!(state.dojoDoneEvents && state.dojoDoneEvents[key]);
     const urgent = !!(state.dojoUrgentEvents && state.dojoUrgentEvents[key]);
     if(state.dashboard.showCompleted===false && done) return;
     const row = el("div",{class:"task-item dojo-task-item"+(done?" done":"")+(urgent?" urgent":"")});
-    row.appendChild(el("span",{class:"drag-grip", html:ICON_GRIP, style:"visibility:hidden;"}));
+    const grip = el("span",{class:"drag-grip", html:ICON_GRIP});
+    row.appendChild(grip);
     const grid = el("div",{class:"action-grid"});
     const topRow = el("div",{class:"action-grid-row"});
     const cb = el("input",{type:"checkbox"}); cb.checked = done;
@@ -3149,7 +3140,10 @@ function buildDojoDayEvents(dateStr){
     row.appendChild(grid);
     row.appendChild(el("div",{class:"gcal-task-text"}, label));
     row.appendChild(el("span",{class:"gcal-task-source", html:ICON_DOJO, title:"Da My Dojo (sola lettura)"}));
-    wrap.appendChild(row);
+    const order = dayOrderFor(dateStr);
+    attachExternalRowDrag(grip, row, dateStr, slotRef, ()=>renderDashboard(clear(document.getElementById("main"))));
+    if(order.indexOf(slotRef)===-1) wrap.appendChild(row);
+    else insertExternalDayRow(dayCard, dateStr, slotRef, row);
   });
   return wrap;
 }
@@ -3256,7 +3250,7 @@ async function loadAll(){
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
     taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw,
-    gcalDoneEventsRaw, gcalUrgentEventsRaw, gcalEventOrderRaw, dojoDoneEventsRaw, dojoUrgentEventsRaw,
+    gcalDoneEventsRaw, gcalUrgentEventsRaw, dojoDoneEventsRaw, dojoUrgentEventsRaw,
     notificationsRaw
   ] = await Promise.all([
     store.get(privKey("dashboard"), DEFAULTS.dashboard),
@@ -3289,13 +3283,19 @@ async function loadAll(){
     store.get(privKey("dojoReminders"), {token:null}),
     store.get(privKey("gcalDoneEvents"), {}),
     store.get(privKey("gcalUrgentEvents"), {}),
-    store.get(privKey("gcalEventOrder"), {}),
     store.get(privKey("dojoDoneEvents"), {}),
     store.get(privKey("dojoUrgentEvents"), {}),
     store.get(privKey("notifications"), [])
   ]);
 
   state.dashboard = dashboardRaw;
+  if(!state.dashboard.dayOrder) state.dashboard.dayOrder = {};
+  // Ogni task deve avere un id stabile: serve per "agganciarci" la posizione degli eventi
+  // Google/My Dojo quando li trascini in mezzo ai tuoi task (vedi dayOrder sopra). I task creati
+  // prima di questa modifica non ce l'avevano: lo aggiungiamo qui una volta per tutte.
+  Object.keys(state.dashboard.days||{}).forEach(d=>{
+    (state.dashboard.days[d]||[]).forEach(t=>{ if(!t.id) t.id = "ti"+Date.now()+Math.random().toString(36).slice(2,6); });
+  });
   if(!state.dashboard.backlogBoxes){
     state.dashboard.backlogBoxes = [
       {id:"bx1", title:"Domestic Finance", icon:"coin", items: state.dashboard.finance || []},
@@ -3515,7 +3515,6 @@ async function loadAll(){
   state.dojoReminders = dojoRemindersRaw;
   state.gcalDoneEvents = gcalDoneEventsRaw || {};
   state.gcalUrgentEvents = gcalUrgentEventsRaw || {};
-  state.gcalEventOrder = gcalEventOrderRaw || {};
   state.dojoDoneEvents = dojoDoneEventsRaw || {};
   state.dojoUrgentEvents = dojoUrgentEventsRaw || {};
   state.notifications = notificationsRaw || [];
@@ -3711,6 +3710,85 @@ function attachDayCardDrop(dayCard, day){
   // Marcatore usato da attachTaskDrag per riconoscere "hai rilasciato sul contenitore
   // del giorno" quando non sei sopra una riga specifica (es. spazio vuoto sotto le task).
   dayCard.dataset.dayDrop = day;
+}
+// --- Riordino condiviso tra task, eventi Google Calendar e My Dojo nello stesso giorno ---------
+// I task restano quello che sono sempre stati (un array in state.dashboard.days[giorno], con il
+// loro drag invariato in attachTaskDrag). Gli eventi Google/Dojo invece non sono "nostri": vivono
+// in una cache rifatta ogni volta dalle rispettive fonti, quindi non ha senso salvarli in
+// quell'array. "dayOrder" registra solo le posizioni che l'utente ha scelto esplicitamente
+// trascinando — per ogni giorno, una lista di riferimenti ("gcal:<id>", "dojo" o "task:<id>" usato
+// come punto di aggancio) nell'ordine voluto. Finché non trascini nulla, resta vuota e tutto si
+// comporta come prima (eventi Google e Dojo prima dei task).
+function dayOrderFor(dateStr){
+  if(!state.dashboard.dayOrder) state.dashboard.dayOrder = {};
+  if(!state.dashboard.dayOrder[dateStr]) state.dashboard.dayOrder[dateStr] = [];
+  return state.dashboard.dayOrder[dateStr];
+}
+// Sposta "slotRef" (l'evento che stai trascinando) a occupare il posto di "targetRef" (la riga su
+// cui lo rilasci), aggiungendo quest'ultimo come punto di riferimento fisso se non lo era già.
+function reorderDaySlot(dateStr, slotRef, targetRef){
+  const order = dayOrderFor(dateStr);
+  let fromIdx = order.indexOf(slotRef);
+  if(fromIdx===-1){ order.push(slotRef); fromIdx = order.length-1; }
+  if(order.indexOf(targetRef)===-1){
+    order.splice(fromIdx, 0, targetRef);
+    fromIdx = order.indexOf(slotRef);
+  }
+  order.splice(fromIdx,1);
+  const toIdx = order.indexOf(targetRef);
+  order.splice(toIdx,0,slotRef);
+  store.setQuiet(privKey("dashboard"), state.dashboard);
+}
+// Inserisce la riga di un evento Google/Dojo nel punto giusto dentro dayCard quando la sua
+// posizione è stata personalizzata (vedi dayOrderFor): cerca, dopo il proprio riferimento
+// nell'ordine salvato, il primo elemento già presente nel DOM (un altro evento, o un task tramite
+// il suo "data-task-id") e si inserisce subito prima; altrimenti va in fondo, prima di "aggiungi
+// task". Se la posizione non è mai stata personalizzata, il chiamante non usa questa funzione: la
+// riga resta semplicemente nel suo contenitore storico (eventi Google/Dojo prima dei task).
+function insertExternalDayRow(dayCard, dateStr, slotRef, row){
+  row.dataset.day = dateStr;
+  row.dataset.extRef = slotRef;
+  const order = dayOrderFor(dateStr);
+  const idx = order.indexOf(slotRef);
+  const kids = [...dayCard.children];
+  let refNode = null;
+  for(let j=idx+1; j<order.length && !refNode; j++){
+    const ref = order[j];
+    refNode = kids.find(c=>{
+      if(!c.dataset) return false;
+      if(c.dataset.extRef===ref) return true;
+      if(ref.indexOf("task:")===0 && c.dataset.taskId===ref.slice(5)) return true;
+      return false;
+    }) || null;
+  }
+  if(!refNode) refNode = kids.find(c=>c.classList && c.classList.contains("add-line")) || null;
+  dayCard.insertBefore(row, refNode);
+}
+// Drag & drop per le righe di eventi Google/Dojo: funziona come attachTaskDrag ma riconosce come
+// bersaglio valido sia un'altra riga esterna ("data-ext-ref") sia un task ("data-task-id"), e
+// rifiuta il rilascio se il bersaglio appartiene a un giorno diverso — per questi eventi, legati a
+// una data precisa, ha senso solo riordinarli all'interno dello stesso giorno, mai spostarli altrove.
+function attachExternalRowDrag(handle, row, dateStr, slotRef, refreshFn){
+  row.dataset.day = dateStr;
+  row.dataset.extRef = slotRef;
+  function resolveTarget(e){
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    return under && (under.closest("[data-ext-ref]") || under.closest("[data-task-id]"));
+  }
+  bindPointerDragSource(handle, row, (e)=>{
+    document.querySelectorAll(".drag-over").forEach(el=>el.classList.remove("drag-over"));
+    const target = resolveTarget(e);
+    if(target && target!==row) target.classList.add("drag-over");
+  }, (e)=>{
+    document.querySelectorAll(".drag-over").forEach(el=>el.classList.remove("drag-over"));
+    const target = resolveTarget(e);
+    if(!target || target===row) return;
+    if(target.dataset.day !== dateStr) return;
+    const targetRef = target.dataset.extRef || ("task:"+target.dataset.taskId);
+    if(targetRef===slotRef) return;
+    reorderDaySlot(dateStr, slotRef, targetRef);
+    refreshFn();
+  });
 }
 // Trascina una voce di checklist (renderPackItem) da una categoria a un'altra, non solo
 // all'interno della stessa — stesso schema di attachTaskDrag per i task della Home: cerca il
@@ -5166,8 +5244,8 @@ function buildDayRow(main, dateStr, isToday, isHistory){
   const dayName = weekdayNameFromDate(dateStr);
   const tasks = state.dashboard.days[dateStr];
   const dayCard = el("div",{class:"card day-card"+(isHistory?" day-card-history":""), style:`--day-color:${DAY_COLORS[dayName]}`});
-  if(!isHistory && state.accountSettings.showGcalEvents!==false) dayCard.appendChild(buildGcalDayEvents(dateStr));
-  if(!isHistory && state.accountSettings.showDojoEvents!==false) dayCard.appendChild(buildDojoDayEvents(dateStr));
+  if(!isHistory && state.accountSettings.showGcalEvents!==false) dayCard.appendChild(buildGcalDayEvents(dayCard, dateStr));
+  if(!isHistory && state.accountSettings.showDojoEvents!==false) dayCard.appendChild(buildDojoDayEvents(dayCard, dateStr));
   if(!isHistory) dayCard.appendChild(buildProjectDayTasks(dateStr));
   tasks.forEach((t,i)=>{
     if(state.dashboard.showCompleted===false && t.done) return;
@@ -5178,7 +5256,7 @@ function buildDayRow(main, dateStr, isToday, isHistory){
     const input = el("input",{type:"text", placeholder:"aggiungi task… (Tab per sotto-task)", "data-day":dateStr, enterkeyhint:"done"});
     input.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" && input.value.trim()){
-        const newTask = {text:input.value.trim(), done:false, subtasks:[]};
+        const newTask = {id:"ti"+Date.now(), text:input.value.trim(), done:false, subtasks:[]};
         state.dashboard.days[dateStr].push(newTask);
         lastTaskByDay[dateStr] = newTask;
         store.set(privKey("dashboard"), state.dashboard);
@@ -5192,7 +5270,7 @@ function buildDayRow(main, dateStr, isToday, isHistory){
           parent.subtasks.push({text:input.value.trim(), done:false});
           syncParentDone(parent);
         } else {
-          state.dashboard.days[dateStr].push({text:input.value.trim(), done:false, subtasks:[]});
+          state.dashboard.days[dateStr].push({id:"ti"+Date.now(), text:input.value.trim(), done:false, subtasks:[]});
         }
         store.set(privKey("dashboard"), state.dashboard);
         renderDashboard(clear(main));
@@ -5224,6 +5302,11 @@ function renderTaskBlock(main, day, t, i){
   if(!t.subtasks) t.subtasks = [];
   const tasks = state.dashboard.days[day];
   const wrap = el("div",{class:"task-block"});
+  // Marcatori usati solo per agganciarci la posizione degli eventi Google/Dojo quando li trascini
+  // tra i tuoi task (vedi insertExternalDayRow/attachExternalRowDrag): non cambiano in alcun modo
+  // il drag & drop già esistente dei task, che resta gestito da attachTaskDrag come sempre.
+  wrap.dataset.taskId = t.id || "";
+  wrap.dataset.day = day;
   const row = el("div",{class:"task-item"+(t.done?" done":"")+(t.urgent?" urgent":"")});
   const grip = el("span",{class:"drag-grip", html:ICON_GRIP});
   const cb = el("input",{type:"checkbox"});
