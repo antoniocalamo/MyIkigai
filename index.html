@@ -1637,18 +1637,19 @@ input.cashflow-item-occ-input{
 /* ---- To Do List header actions / today highlight ---- */
 .todo-header-actions{display:flex; align-items:center; gap:16px; flex-wrap:wrap; text-transform:none; letter-spacing:normal; font-family:'Inter',sans-serif;}
 .gcal-status-wrap{display:flex; align-items:center; gap:6px;}
-.gcal-day-events{display:flex; flex-direction:column; gap:4px; margin-bottom:6px;}
-.gcal-event-chip{
-  display:flex; align-items:center; gap:6px;
-  background:var(--paper-2); border:1px dashed var(--teal);
-  border-radius:6px; padding:4px 8px;
-  font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);
+.gcal-day-events{display:flex; flex-direction:column;}
+.gcal-task-text{
+  flex:1; min-width:0; padding:3px 0;
+  font-family:'Inter',sans-serif; font-size:14px; color:var(--ink); line-height:1.3;
+  overflow-wrap:break-word;
 }
-.gcal-event-chip:hover{background:var(--paper);}
-.gcal-event-icon{width:12px; height:12px; flex-shrink:0; color:var(--teal); opacity:.8;}
-.gcal-event-icon svg{width:100%; height:100%; display:block;}
-.gcal-event-time{font-weight:600; color:var(--teal); flex-shrink:0;}
-.gcal-event-title{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.task-item.done .gcal-task-text{text-decoration:line-through; color:var(--ink-soft);}
+.gcal-task-source{
+  cursor:pointer; width:14px; height:14px; flex-shrink:0; color:var(--teal); opacity:.55;
+  display:flex; align-items:center; justify-content:center;
+}
+.gcal-task-source svg{width:100%; height:100%; display:block;}
+.gcal-task-source:hover{opacity:1;}
 .project-day-events{display:flex; flex-direction:column; gap:4px; margin-bottom:6px;}
 .project-day-chip{
   display:flex; align-items:center; gap:6px; cursor:pointer;
@@ -2988,7 +2989,10 @@ async function fetchGcalEventsFromApi(){
           }
           if(!dateStr) return;
           if(!map[dateStr]) map[dateStr] = [];
-          map[dateStr].push({ title: ev.summary || "(senza titolo)", allDay, time, link: ev.htmlLink || null });
+          // "key" identifica in modo stabile questa singola occorrenza (anche per un evento
+          // ricorrente, ogni occorrenza ha un id proprio con singleEvents=true): ci serve per
+          // ricordare localmente se l'hai spuntata, dato che Google Calendar resta di sola lettura.
+          map[dateStr].push({ key: calId+"|"+ev.id, title: ev.summary || "(senza titolo)", allDay, time, link: ev.htmlLink || null });
         });
       }catch(e){ console.error("gcal events: errore fetch calendario", calId, e); } // un calendario che fallisce non deve bloccare gli altri
     }));
@@ -3011,6 +3015,12 @@ async function fetchGcalEventsFromApi(){
 }
 // Costruisce il blocchetto (sola lettura) di eventi Google per un singolo giorno dentro la
 // sua day-card. Viene riempito in modo asincrono senza ri-renderizzare tutta la Dashboard.
+// Mostra gli eventi Google del giorno con lo stesso stile delle attività normali (stessa riga,
+// stessa checkbox, stesso barrato quando spuntati) invece del vecchio "chip" a parte: così si
+// spuntano i promemoria importati da Google esattamente come un task qualsiasi. La spunta è
+// però solo nostra — Google Calendar resta di sola lettura, quindi il fatto/non fatto è
+// salvato qui in locale (state.gcalDoneEvents, chiave = calendario+id dell'occorrenza) e non
+// torna mai indietro verso Google.
 function buildGcalDayEvents(dateStr){
   const wrap = el("div",{class:"gcal-day-events"});
   if(!state.googleCalendar || !state.googleCalendar.connected) return wrap;
@@ -3018,15 +3028,27 @@ function buildGcalDayEvents(dateStr){
     if(!map) return;
     const events = map[dateStr];
     if(!events || !events.length) return;
+    wrap.innerHTML = "";
     events.forEach(ev=>{
-      const row = el("div",{class:"gcal-event-chip", title:"Da Google Calendar (sola lettura)"});
-      row.appendChild(el("span",{class:"gcal-event-icon", html:ICON_GCAL}));
-      if(!ev.allDay && ev.time) row.appendChild(el("span",{class:"gcal-event-time"}, ev.time));
-      row.appendChild(el("span",{class:"gcal-event-title"}, ev.title));
-      if(ev.link){
-        row.style.cursor = "pointer";
-        row.addEventListener("click", ()=> window.open(ev.link, "_blank", "noopener"));
-      }
+      const done = !!(state.gcalDoneEvents && state.gcalDoneEvents[ev.key]);
+      if(state.dashboard.showCompleted===false && done) return;
+      const row = el("div",{class:"task-item gcal-task-item"+(done?" done":"")});
+      row.appendChild(el("span",{class:"drag-grip", html:ICON_GRIP, style:"visibility:hidden;"}));
+      const grid = el("div",{class:"action-grid"});
+      const cb = el("input",{type:"checkbox"}); cb.checked = done;
+      cb.addEventListener("change", ()=>{
+        if(!state.gcalDoneEvents) state.gcalDoneEvents = {};
+        state.gcalDoneEvents[ev.key] = cb.checked;
+        store.setQuiet(privKey("gcalDoneEvents"), state.gcalDoneEvents);
+        renderDashboard(clear(document.getElementById("main")));
+      });
+      grid.appendChild(cb);
+      row.appendChild(grid);
+      const label = (!ev.allDay && ev.time) ? (ev.time+" · "+ev.title) : ev.title;
+      row.appendChild(el("div",{class:"gcal-task-text"}, label));
+      const src = el("span",{class:"gcal-task-source", html:ICON_GCAL, title:"Da Google Calendar (sola lettura)"+(ev.link?" · clicca per aprire":"")});
+      if(ev.link) src.addEventListener("click",(e)=>{ e.stopPropagation(); window.open(ev.link, "_blank", "noopener"); });
+      row.appendChild(src);
       wrap.appendChild(row);
     });
   });
@@ -3189,7 +3211,7 @@ async function loadAll(){
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
     taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw,
-    notificationsRaw
+    gcalDoneEventsRaw, notificationsRaw
   ] = await Promise.all([
     store.get(privKey("dashboard"), DEFAULTS.dashboard),
     store.get("orto", DEFAULTS.orto),
@@ -3219,6 +3241,7 @@ async function loadAll(){
     store.get(privKey("accountSettings"), {notifyFinance27:false}),
     store.get(privKey("googleCalendar"), {connected:false, email:null}),
     store.get(privKey("dojoReminders"), {token:null}),
+    store.get(privKey("gcalDoneEvents"), {}),
     store.get(privKey("notifications"), [])
   ]);
 
@@ -3440,6 +3463,7 @@ async function loadAll(){
   state.accountSettings = accountSettingsRaw;
   state.googleCalendar = googleCalendarRaw;
   state.dojoReminders = dojoRemindersRaw;
+  state.gcalDoneEvents = gcalDoneEventsRaw || {};
   state.notifications = notificationsRaw || [];
 }
 
