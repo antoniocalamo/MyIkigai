@@ -1662,19 +1662,7 @@ input.cashflow-item-occ-input{
 .project-day-chip-title.done{text-decoration:line-through; opacity:.6;}
 .project-day-chip-kind{flex-shrink:0; font-style:italic; opacity:.7;}
 .project-day-chip-proj{flex-shrink:0; opacity:.65; font-size:10px;}
-.dojo-day-events{display:flex; flex-direction:column; gap:4px; margin-bottom:6px;}
-.dojo-event-chip{
-  display:flex; align-items:center; gap:6px;
-  background:var(--paper-2); border:1px dashed var(--rust);
-  border-radius:6px; padding:4px 8px;
-  font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);
-}
-.dojo-event-chip:hover{background:var(--paper);}
-.dojo-event-icon{width:12px; height:12px; flex-shrink:0; color:var(--rust); opacity:.8;}
-.dojo-event-icon svg{width:100%; height:100%; display:block;}
-.dojo-event-title{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;}
-.dojo-event-chip.done .dojo-event-title{text-decoration:line-through; opacity:.6;}
-.dojo-event-check{flex-shrink:0; color:var(--forest); font-weight:700;}
+.dojo-day-events{display:flex; flex-direction:column;}
 .toggle-completed{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-soft); cursor:pointer;}
 .toggle-completed input{accent-color:var(--forest); width:15px; height:15px;}
 .day-row.today .day-label{
@@ -3016,25 +3004,38 @@ async function fetchGcalEventsFromApi(){
 // Costruisce il blocchetto (sola lettura) di eventi Google per un singolo giorno dentro la
 // sua day-card. Viene riempito in modo asincrono senza ri-renderizzare tutta la Dashboard.
 // Mostra gli eventi Google del giorno con lo stesso stile delle attività normali (stessa riga,
-// stessa checkbox, stesso barrato quando spuntati) invece del vecchio "chip" a parte: così si
-// spuntano i promemoria importati da Google esattamente come un task qualsiasi. La spunta è
-// però solo nostra — Google Calendar resta di sola lettura, quindi il fatto/non fatto è
-// salvato qui in locale (state.gcalDoneEvents, chiave = calendario+id dell'occorrenza) e non
-// torna mai indietro verso Google.
+// stessa checkbox, stesso barrato quando spuntati, flag "urgente", trascinabili per riordinarli)
+// invece del vecchio "chip" a parte — niente sotto-attività, non avrebbe senso per un evento
+// esterno. Spunta e urgenza sono però solo nostre — Google Calendar resta di sola lettura, quindi
+// tutto questo è salvato qui in locale (chiave = calendario+id dell'occorrenza) e non torna mai
+// indietro verso Google. Il trascinamento riordina solo all'interno dello stesso giorno (niente
+// spostamento tra giorni, che per un evento legato a una data precisa non avrebbe senso).
 function buildGcalDayEvents(dateStr){
   const wrap = el("div",{class:"gcal-day-events"});
   if(!state.googleCalendar || !state.googleCalendar.connected) return wrap;
   ensureGcalEventsLoaded().then(map=>{
     if(!map) return;
-    const events = map[dateStr];
-    if(!events || !events.length) return;
+    const rawEvents = map[dateStr];
+    if(!rawEvents || !rawEvents.length) return;
+    // Applica l'ordine personalizzato salvato (se c'è) e aggiunge in coda gli eventi non ancora
+    // visti (nuovi, o mai trascinati), nel loro ordine naturale per data/ora.
+    const byKey = {}; rawEvents.forEach(e=>{ byKey[e.key] = e; });
+    const events = [];
+    ((state.gcalEventOrder && state.gcalEventOrder[dateStr]) || []).forEach(k=>{
+      if(byKey[k]){ events.push(byKey[k]); delete byKey[k]; }
+    });
+    rawEvents.forEach(e=>{ if(byKey[e.key]) events.push(e); });
+
     wrap.innerHTML = "";
-    events.forEach(ev=>{
+    events.forEach((ev,i)=>{
       const done = !!(state.gcalDoneEvents && state.gcalDoneEvents[ev.key]);
+      const urgent = !!(state.gcalUrgentEvents && state.gcalUrgentEvents[ev.key]);
       if(state.dashboard.showCompleted===false && done) return;
-      const row = el("div",{class:"task-item gcal-task-item"+(done?" done":"")});
-      row.appendChild(el("span",{class:"drag-grip", html:ICON_GRIP, style:"visibility:hidden;"}));
+      const row = el("div",{class:"task-item gcal-task-item"+(done?" done":"")+(urgent?" urgent":"")});
+      const grip = el("span",{class:"drag-grip", html:ICON_GRIP});
+      row.appendChild(grip);
       const grid = el("div",{class:"action-grid"});
+      const topRow = el("div",{class:"action-grid-row"});
       const cb = el("input",{type:"checkbox"}); cb.checked = done;
       cb.addEventListener("change", ()=>{
         if(!state.gcalDoneEvents) state.gcalDoneEvents = {};
@@ -3042,13 +3043,28 @@ function buildGcalDayEvents(dateStr){
         store.setQuiet(privKey("gcalDoneEvents"), state.gcalDoneEvents);
         renderDashboard(clear(document.getElementById("main")));
       });
-      grid.appendChild(cb);
+      const urgentBtn = el("span",{class:"urgent-flag"+(urgent?" active":""), title:"Segna urgente"}, "!");
+      urgentBtn.addEventListener("pointerdown",(e)=>{
+        e.preventDefault(); e.stopPropagation();
+        if(!state.gcalUrgentEvents) state.gcalUrgentEvents = {};
+        state.gcalUrgentEvents[ev.key] = !urgent;
+        store.setQuiet(privKey("gcalUrgentEvents"), state.gcalUrgentEvents);
+        renderDashboard(clear(document.getElementById("main")));
+      });
+      topRow.appendChild(cb); topRow.appendChild(urgentBtn);
+      grid.appendChild(topRow);
       row.appendChild(grid);
       const label = (!ev.allDay && ev.time) ? (ev.time+" · "+ev.title) : ev.title;
       row.appendChild(el("div",{class:"gcal-task-text"}, label));
       const src = el("span",{class:"gcal-task-source", html:ICON_GCAL, title:"Da Google Calendar (sola lettura)"+(ev.link?" · clicca per aprire":"")});
       if(ev.link) src.addEventListener("click",(e)=>{ e.stopPropagation(); window.open(ev.link, "_blank", "noopener"); });
       row.appendChild(src);
+      attachRowDrag(grip, row, i, events, ()=>{
+        if(!state.gcalEventOrder) state.gcalEventOrder = {};
+        state.gcalEventOrder[dateStr] = events.map(e=>e.key);
+        store.setQuiet(privKey("gcalEventOrder"), state.gcalEventOrder);
+        renderDashboard(clear(document.getElementById("main")));
+      });
       wrap.appendChild(row);
     });
   });
@@ -3091,6 +3107,11 @@ async function fetchDojoEventsFromApi(){
     return null;
   }
 }
+// Stesso trattamento di buildGcalDayEvents (stessa riga/checkbox/urgente delle attività normali,
+// riusando le classi "gcal-task-text"/"gcal-task-source" per lo stesso stile): quando ci sono più
+// esercizi nello stesso giorno li accorpa in un'unica riga ("Palestra: A, B, C") invece di una
+// riga per esercizio, quindi qui non c'è drag & drop — con al massimo una riga per giorno non c'è
+// nulla da riordinare al suo interno. Spunta/urgenza restano solo locali, My Dojo è di sola lettura.
 function buildDojoDayEvents(dateStr){
   const wrap = el("div",{class:"dojo-day-events"});
   if(!dojoHasToken()) return wrap;
@@ -3098,13 +3119,37 @@ function buildDojoDayEvents(dateStr){
     if(!map) return;
     const events = map[dateStr];
     if(!events || !events.length) return;
-    events.forEach(ev=>{
-      const row = el("div",{class:"dojo-event-chip"+(ev.done?" done":""), title:"Da My Dojo (sola lettura)"});
-      row.appendChild(el("span",{class:"dojo-event-icon", html:ICON_DOJO}));
-      row.appendChild(el("span",{class:"dojo-event-title"}, ev.title));
-      if(ev.done) row.appendChild(el("span",{class:"dojo-event-check"}, "✓"));
-      wrap.appendChild(row);
+    wrap.innerHTML = "";
+    const key = dateStr + "|" + (events.length>1 ? "__merged__" : events[0].title);
+    const label = events.length>1 ? ("Palestra: " + events.map(e=>e.title).join(", ")) : events[0].title;
+    const done = !!(state.dojoDoneEvents && state.dojoDoneEvents[key]);
+    const urgent = !!(state.dojoUrgentEvents && state.dojoUrgentEvents[key]);
+    if(state.dashboard.showCompleted===false && done) return;
+    const row = el("div",{class:"task-item dojo-task-item"+(done?" done":"")+(urgent?" urgent":"")});
+    row.appendChild(el("span",{class:"drag-grip", html:ICON_GRIP, style:"visibility:hidden;"}));
+    const grid = el("div",{class:"action-grid"});
+    const topRow = el("div",{class:"action-grid-row"});
+    const cb = el("input",{type:"checkbox"}); cb.checked = done;
+    cb.addEventListener("change", ()=>{
+      if(!state.dojoDoneEvents) state.dojoDoneEvents = {};
+      state.dojoDoneEvents[key] = cb.checked;
+      store.setQuiet(privKey("dojoDoneEvents"), state.dojoDoneEvents);
+      renderDashboard(clear(document.getElementById("main")));
     });
+    const urgentBtn = el("span",{class:"urgent-flag"+(urgent?" active":""), title:"Segna urgente"}, "!");
+    urgentBtn.addEventListener("pointerdown",(e)=>{
+      e.preventDefault(); e.stopPropagation();
+      if(!state.dojoUrgentEvents) state.dojoUrgentEvents = {};
+      state.dojoUrgentEvents[key] = !urgent;
+      store.setQuiet(privKey("dojoUrgentEvents"), state.dojoUrgentEvents);
+      renderDashboard(clear(document.getElementById("main")));
+    });
+    topRow.appendChild(cb); topRow.appendChild(urgentBtn);
+    grid.appendChild(topRow);
+    row.appendChild(grid);
+    row.appendChild(el("div",{class:"gcal-task-text"}, label));
+    row.appendChild(el("span",{class:"gcal-task-source", html:ICON_DOJO, title:"Da My Dojo (sola lettura)"}));
+    wrap.appendChild(row);
   });
   return wrap;
 }
@@ -3211,7 +3256,8 @@ async function loadAll(){
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
     taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw,
-    gcalDoneEventsRaw, notificationsRaw
+    gcalDoneEventsRaw, gcalUrgentEventsRaw, gcalEventOrderRaw, dojoDoneEventsRaw, dojoUrgentEventsRaw,
+    notificationsRaw
   ] = await Promise.all([
     store.get(privKey("dashboard"), DEFAULTS.dashboard),
     store.get("orto", DEFAULTS.orto),
@@ -3242,6 +3288,10 @@ async function loadAll(){
     store.get(privKey("googleCalendar"), {connected:false, email:null}),
     store.get(privKey("dojoReminders"), {token:null}),
     store.get(privKey("gcalDoneEvents"), {}),
+    store.get(privKey("gcalUrgentEvents"), {}),
+    store.get(privKey("gcalEventOrder"), {}),
+    store.get(privKey("dojoDoneEvents"), {}),
+    store.get(privKey("dojoUrgentEvents"), {}),
     store.get(privKey("notifications"), [])
   ]);
 
@@ -3464,6 +3514,10 @@ async function loadAll(){
   state.googleCalendar = googleCalendarRaw;
   state.dojoReminders = dojoRemindersRaw;
   state.gcalDoneEvents = gcalDoneEventsRaw || {};
+  state.gcalUrgentEvents = gcalUrgentEventsRaw || {};
+  state.gcalEventOrder = gcalEventOrderRaw || {};
+  state.dojoDoneEvents = dojoDoneEventsRaw || {};
+  state.dojoUrgentEvents = dojoUrgentEventsRaw || {};
   state.notifications = notificationsRaw || [];
 }
 
