@@ -3252,7 +3252,7 @@ async function loadAll(){
     hiddenBuiltinsRaw, builtinLabelsRaw, builtinColorsRaw, builtinIconsRaw,
     builtinOrderRaw, mobilePinnedRaw, gommeLayoutRaw, uiZoomRaw, appThemeRaw,
     taglinesRaw, dashTitlesRaw, bootPhrasesRaw, accountSettingsRaw, googleCalendarRaw, dojoRemindersRaw,
-    gcalDoneEventsRaw, gcalUrgentEventsRaw, dojoDoneEventsRaw, dojoUrgentEventsRaw,
+    gcalDoneEventsRaw, gcalUrgentEventsRaw, dojoDoneEventsRaw, dojoUrgentEventsRaw, dayOrderRaw,
     notificationsRaw
   ] = await Promise.all([
     store.get(privKey("dashboard"), DEFAULTS.dashboard),
@@ -3287,14 +3287,20 @@ async function loadAll(){
     store.get(privKey("gcalUrgentEvents"), {}),
     store.get(privKey("dojoDoneEvents"), {}),
     store.get(privKey("dojoUrgentEvents"), {}),
+    store.get(privKey("dayOrder"), {}),
     store.get(privKey("notifications"), [])
   ]);
 
   state.dashboard = dashboardRaw;
-  if(!state.dashboard.dayOrder) state.dashboard.dayOrder = {};
+  // "dayOrder" vive in una sua chiave di salvataggio separata (non dentro "dashboard"): registra
+  // solo le posizioni scelte trascinando un evento Google/My Dojo tra i task. Tenerla separata
+  // evita che un salvataggio dei task (frequente: ogni spunta, ogni trascinamento) e uno di questo
+  // ordinamento, se capitano quasi insieme, possano "fare a gara" sullo stesso blocco di dati e
+  // farsi perdere a vicenda le modifiche.
+  state.dayOrder = dayOrderRaw || {};
   // Ogni task deve avere un id stabile: serve per "agganciarci" la posizione degli eventi
-  // Google/My Dojo quando li trascini in mezzo ai tuoi task (vedi dayOrder sopra). I task creati
-  // prima di questa modifica non ce l'avevano: lo aggiungiamo qui una volta per tutte.
+  // Google/My Dojo quando li trascini in mezzo ai tuoi task (vedi state.dayOrder sopra). I task
+  // creati prima di questa modifica non ce l'avevano: lo aggiungiamo qui una volta per tutte.
   Object.keys(state.dashboard.days||{}).forEach(d=>{
     (state.dashboard.days[d]||[]).forEach(t=>{ if(!t.id) t.id = "ti"+Date.now()+Math.random().toString(36).slice(2,6); });
   });
@@ -3722,9 +3728,9 @@ function attachDayCardDrop(dayCard, day){
 // come punto di aggancio) nell'ordine voluto. Finché non trascini nulla, resta vuota e tutto si
 // comporta come prima (eventi Google e Dojo prima dei task).
 function dayOrderFor(dateStr){
-  if(!state.dashboard.dayOrder) state.dashboard.dayOrder = {};
-  if(!state.dashboard.dayOrder[dateStr]) state.dashboard.dayOrder[dateStr] = [];
-  return state.dashboard.dayOrder[dateStr];
+  if(!state.dayOrder) state.dayOrder = {};
+  if(!state.dayOrder[dateStr]) state.dayOrder[dateStr] = [];
+  return state.dayOrder[dateStr];
 }
 // Sposta "slotRef" (l'evento che stai trascinando) a occupare il posto di "targetRef" (la riga su
 // cui lo rilasci), aggiungendo quest'ultimo come punto di riferimento fisso se non lo era già.
@@ -3739,7 +3745,7 @@ function reorderDaySlot(dateStr, slotRef, targetRef){
   order.splice(fromIdx,1);
   const toIdx = order.indexOf(targetRef);
   order.splice(toIdx,0,slotRef);
-  store.setQuiet(privKey("dashboard"), state.dashboard);
+  store.setQuiet(privKey("dayOrder"), state.dayOrder);
 }
 // Inserisce la riga di un evento Google/Dojo nel punto giusto dentro dayCard quando la sua
 // posizione è stata personalizzata (vedi dayOrderFor): cerca, dopo il proprio riferimento
