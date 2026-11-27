@@ -3110,8 +3110,10 @@ function buildDojoDayEvents(dayCard, dateStr){
     if(!events || !events.length) return;
     wrap.innerHTML = "";
     const slotRef = "dojo";
-    const key = dateStr + "|" + (events.length>1 ? "__merged__" : events[0].title);
-    const label = events.length>1 ? ("Palestra: " + events.map(e=>e.title).join(", ")) : events[0].title;
+    // Chiave stabile indipendente dal numero di esercizi: se oggi ne hai uno solo e domani due,
+    // la spunta/urgenza non deve "perdersi" solo perché cambia quanti esercizi ci sono.
+    const key = dateStr + "|dojo";
+    const label = "Palestra: " + events.map(e=>e.title).join(", ");
     const done = !!(state.dojoDoneEvents && state.dojoDoneEvents[key]);
     const urgent = !!(state.dojoUrgentEvents && state.dojoUrgentEvents[key]);
     if(state.dashboard.showCompleted===false && done) return;
